@@ -1,5 +1,5 @@
-GLuint raymarch_vao, raymarch_texture;
-shader_id raymarch_shader;
+GLuint scene_vao, scene_texture;
+
 #define GLSL(src) #src
 
 const char vertex_source[] =
@@ -85,7 +85,7 @@ void main(void)
 
 void init_raymarch()
 {
-	raymarch_shader = initShader( vertex_source, (const char*)scene1_shader);
+	
 	// get texture uniform location
 
 
@@ -93,8 +93,8 @@ void init_raymarch()
 	GLuint vbo;
 
 	// generate and bind the vao
-	glGenVertexArrays(1, &raymarch_vao);
-	glBindVertexArray(raymarch_vao);
+	glGenVertexArrays(1, &scene_vao);
+	glBindVertexArray(scene_vao);
 
 	// generate and bind the vertex buffer object, to be used with VAO
 	glGenBuffers(1, &vbo);
@@ -142,8 +142,8 @@ void init_raymarch()
 	}
 	}
 
-	glGenTextures(1, &raymarch_texture);
-	glBindTexture(GL_TEXTURE_2D, raymarch_texture);
+	glGenTextures(1, &scene_texture);
+	glBindTexture(GL_TEXTURE_2D, scene_texture);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -153,18 +153,17 @@ void init_raymarch()
 	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-void draw_raymarch(float time, int program, int xres, int yres){
-	glBindProgramPipeline(raymarch_shader.pid);
+void draw_raymarch(float time, shader_id program, int xres, int yres){
+	glBindProgramPipeline(program.pid);
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, raymarch_texture);
-	glProgramUniform1i(raymarch_shader.fsid,2, 0);
-
+	glBindTexture(GL_TEXTURE_2D, scene_texture);
+	glProgramUniform1i(program.fsid,2, 0);
 	float fparams[4] = { xres,yres, time, 0.0 };
-	glProgramUniform4fv(raymarch_shader.fsid, 1, 1, fparams);
+	glProgramUniform4fv(program.fsid, 1, 1, fparams);
 	// bind the vao
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glBindVertexArray(raymarch_vao);
+	glBindVertexArray(scene_vao);
 	// draw
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 	glBindTexture(GL_TEXTURE_2D, 0);

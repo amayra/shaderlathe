@@ -27,14 +27,16 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\3rdparty\pez.windows.c" />
-    <ClCompile Include="..\shaderlathe.cpp" />
+    <ClInclude Include="3rdparty\dr.h" />
+    <ClInclude Include="3rdparty\dr_fsw.h" />
+    <ClInclude Include="3rdparty\gb_math.h" />
+    <ClInclude Include="3rdparty\gl3w.h" />
+    <ClInclude Include="3rdparty\glcorearb.h" />
+    <ClInclude Include="3rdparty\pez.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\3rdparty\gb_math.h" />
-    <ClInclude Include="..\3rdparty\gl3w.h" />
-    <ClInclude Include="..\3rdparty\glcorearb.h" />
-    <ClInclude Include="..\3rdparty\pez.h" />
+    <ClCompile Include="3rdparty\pez.windows.c" />
+    <ClCompile Include="shaderlathe.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{91B645FD-82AF-44D4-9D0A-CD74BC0CAC3C}</ProjectGuid>
@@ -113,8 +115,8 @@
     <IntDir Condition="'$(Configuration)|$(Platform)'=='rls|Win32'">.\bin/v8/x86/Debug\</IntDir>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</LinkIncremental>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='rls|Win32'">true</LinkIncremental>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\bin/v8/x86/Release\</OutDir>
-    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\bin/v8/x86/Release\</IntDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\exe</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\exe</IntDir>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</LinkIncremental>
     <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</GenerateManifest>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\bin/v8/x64/Debug\</OutDir>
@@ -151,6 +153,9 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <TargetName>intro_debug</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <TargetName>shaderlathe</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Midl>
@@ -298,13 +303,15 @@
     </ResourceCompile>
     <Link>
       <AdditionalDependencies>opengl32.lib;winmm.lib;glu32.lib;gdi32.lib;gdiplus.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>.\exe\intro.exe</OutputFile>
+      <OutputFile>
+      </OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
       <GenerateMapFile>true</GenerateMapFile>
       <MapFileName>.\exe/intro.map</MapFileName>
       <SubSystem>Windows</SubSystem>
-      <EntryPointSymbol>entrypoint</EntryPointSymbol>
+      <EntryPointSymbol>
+      </EntryPointSymbol>
       <BaseAddress>0x600000</BaseAddress>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <DataExecutionPrevention>
