@@ -27,14 +27,14 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="3rdparty\gb_math.h" />
-    <ClInclude Include="3rdparty\gl3w.h" />
-    <ClInclude Include="3rdparty\glcorearb.h" />
-    <ClInclude Include="3rdparty\pez.h" />
+    <ClCompile Include="..\3rdparty\pez.windows.c" />
+    <ClCompile Include="..\shaderlathe.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="3rdparty\pez.windows.c" />
-    <ClCompile Include="shaderlathe.cpp" />
+    <ClInclude Include="..\3rdparty\gb_math.h" />
+    <ClInclude Include="..\3rdparty\gl3w.h" />
+    <ClInclude Include="..\3rdparty\glcorearb.h" />
+    <ClInclude Include="..\3rdparty\pez.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{91B645FD-82AF-44D4-9D0A-CD74BC0CAC3C}</ProjectGuid>
