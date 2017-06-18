@@ -107,10 +107,6 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
             PezUpdate(deltaTime);
             PezRender();
             SwapBuffers(hDC);
-         if (glGetError() != GL_NO_ERROR)
-         {
-           PezFatalError("OpenGL error.\n");
-         }
     }
     UnregisterClassA(szName, wc.hInstance);
 	ExitProcess(0);

@@ -23,10 +23,9 @@ struct FBOELEM {
 	GLint status;
 };
 
-shader_id initShader(const char *vsh, const char *fsh)
+shader_id initShader(shader_id shad,const char *vsh, const char *fsh)
 {
-	shader_id shad = { 0 };
-	shad.compiled = false;
+	shad.compiled = true;
 	shad.vsid = glCreateShaderProgramv(GL_VERTEX_SHADER, 1, &vsh);
 	shad.fsid = glCreateShaderProgramv(GL_FRAGMENT_SHADER, 1, &fsh);
 	glGenProgramPipelines(1, &shad.pid);
@@ -36,21 +35,23 @@ shader_id initShader(const char *vsh, const char *fsh)
 #ifdef DEBUG
 	int		result;
 	char    info[1536];
-	glGetProgramiv(shad.vsid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.vsid, 1024, NULL, (char *)info); if (!result) DebugBreak();
-	glGetProgramiv(shad.fsid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.fsid, 1024, NULL, (char *)info); if (!result) DebugBreak();
-	glGetProgramiv(shad.pid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.pid, 1024, NULL, (char *)info); if (!result) DebugBreak();
+	glGetProgramiv(shad.vsid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.vsid, 1024, NULL, (char *)info); if (!result){ shad.compiled = false; }
+	glGetProgramiv(shad.fsid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.fsid, 1024, NULL, (char *)info); if (!result){ shad.compiled = false; }
+	glGetProgramiv(shad.pid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.pid, 1024, NULL, (char *)info); if (!result){ shad.compiled = false; }
 #endif
+	if (!shad.compiled)return shad;
 	glBindProgramPipeline(0);
 	shad.compiled = true;
 	return shad;
 }
 
-shader_id raymarch_shader;
+shader_id raymarch_shader = { 0 };
+static float sceneTime = 0;
+drfsw_context* context = NULL;
 
 #include "raymarch.h"
 
-static float sceneTime = 0;
-drfsw_context* context = NULL;
+
 
 void PezHandleMouse(int x, int y, int action) { }
 
@@ -72,11 +73,15 @@ void PezHandleMouse(int x, int y, int action) { }
  {
 	 if (strcmp(getFileNameFromPath(path), "raymarch.glsl") == 0)
 	 {
-		 raymarch_shader.compiled = false;
+		 glDeleteProgram(raymarch_shader.fsid);
+		 glDeleteProgram(raymarch_shader.vsid);
+		 glBindProgramPipeline(0);
 		 glDeleteProgramPipelines(1, &raymarch_shader.pid);
+		 raymarch_shader = { 0 };
+		 raymarch_shader.compiled = false;
 		 size_t sizeout;
 		 char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
-		 raymarch_shader = initShader(vertex_source, (const char*)pix_shader);
+		 raymarch_shader =initShader(raymarch_shader,vertex_source, (const char*)pix_shader);
 		 free(pix_shader);
 	 }
  }
@@ -88,12 +93,17 @@ void PezRender()
 	{
 		switch (e.type)
 		{
-		case drfsw_event_type_updated: recompile_shader(e.absolutePath); break;
+		case drfsw_event_type_updated: recompile_shader(e.absolutePath);break;
 		default: break;
 		}
 	}
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glClearColor(0.0, 0.0, 0.0, 1.0f);
 	if (raymarch_shader.compiled)
-	draw_raymarch(sceneTime, raymarch_shader, 1280, 720);
+	{
+		draw_raymarch(sceneTime, raymarch_shader, 1280, 720);
+	}
+	
 }
 
 const char* PezInitialize(int width, int height)
@@ -104,7 +114,7 @@ const char* PezInitialize(int width, int height)
 	drfsw_add_directory(context, path);
 	size_t sizeout;
 	char* pix_shader = dr_open_and_read_text_file("raymarch.glsl", &sizeout);
-	raymarch_shader = initShader(vertex_source, (const char*)pix_shader);
+	raymarch_shader = initShader(raymarch_shader,vertex_source, (const char*)pix_shader);
 	free(pix_shader);
 	init_raymarch();
     return "Shader Lathe v0.0";
