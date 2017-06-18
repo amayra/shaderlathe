@@ -35,14 +35,23 @@ shader_id initShader(shader_id shad,const char *vsh, const char *fsh)
 #ifdef DEBUG
 	int		result;
 	char    info[1536];
-	glGetProgramiv(shad.vsid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.vsid, 1024, NULL, (char *)info); if (!result){ shad.compiled = false; }
-	glGetProgramiv(shad.fsid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.fsid, 1024, NULL, (char *)info); if (!result){ shad.compiled = false; }
-	glGetProgramiv(shad.pid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.pid, 1024, NULL, (char *)info); if (!result){ shad.compiled = false; }
+	glGetProgramiv(shad.vsid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.vsid, 1024, NULL, (char *)info); if (!result){ goto fail; }
+	glGetProgramiv(shad.fsid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.fsid, 1024, NULL, (char *)info); if (!result){ goto fail; }
+	glGetProgramiv(shad.pid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.pid, 1024, NULL, (char *)info); if (!result){ goto fail; }
 #endif
-	if (!shad.compiled)return shad;
+	
 	glBindProgramPipeline(0);
 	shad.compiled = true;
 	return shad;
+fail:
+	{
+		shad.compiled = false;
+		glDeleteProgram(shad.fsid);
+		glDeleteProgram(shad.vsid);
+		glBindProgramPipeline(0);
+		glDeleteProgramPipelines(1, &shad.pid);
+		return shad;
+	}
 }
 
 shader_id raymarch_shader = { 0 };
@@ -50,8 +59,6 @@ static float sceneTime = 0;
 drfsw_context* context = NULL;
 
 #include "raymarch.h"
-
-
 
 void PezHandleMouse(int x, int y, int action) { }
 
@@ -73,21 +80,20 @@ void PezHandleMouse(int x, int y, int action) { }
  {
 	 if (strcmp(getFileNameFromPath(path), "raymarch.glsl") == 0)
 	 {
-			if (glIsProgramPipeline(raymarch_shader.pid))
-			{
-			 glDeleteProgram(raymarch_shader.fsid);
-			 glDeleteProgram(raymarch_shader.vsid);
-			 glBindProgramPipeline(0);
-			 glDeleteProgramPipelines(1, &raymarch_shader.pid);
-			}
-			raymarch_shader = { 0 };
-			raymarch_shader.compiled = false;
-			size_t sizeout = 0;
-			char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
-			if (pix_shader){
-			raymarch_shader = initShader(raymarch_shader, vertex_source, (const char*)pix_shader);
-			dr_free_file_data(pix_shader);
-			}
+		if (glIsProgramPipeline(raymarch_shader.pid)){
+		glDeleteProgram(raymarch_shader.fsid);
+		glDeleteProgram(raymarch_shader.vsid);
+		glBindProgramPipeline(0);
+		glDeleteProgramPipelines(1, &raymarch_shader.pid);
+		}
+		raymarch_shader = { 0 };
+		raymarch_shader.compiled = false;
+		size_t sizeout = 0;
+		char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
+		if (pix_shader){
+		raymarch_shader = initShader(raymarch_shader, vertex_source, (const char*)pix_shader);
+		dr_free_file_data(pix_shader);
+		}
 	 }
 
 	 if (strcmp(getFileNameFromPath(path), "post.glsl") == 0)
