@@ -73,16 +73,26 @@ void PezHandleMouse(int x, int y, int action) { }
  {
 	 if (strcmp(getFileNameFromPath(path), "raymarch.glsl") == 0)
 	 {
-		 glDeleteProgram(raymarch_shader.fsid);
-		 glDeleteProgram(raymarch_shader.vsid);
-		 glBindProgramPipeline(0);
-		 glDeleteProgramPipelines(1, &raymarch_shader.pid);
-		 raymarch_shader = { 0 };
-		 raymarch_shader.compiled = false;
-		 size_t sizeout;
-		 char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
-		 raymarch_shader =initShader(raymarch_shader,vertex_source, (const char*)pix_shader);
-		 free(pix_shader);
+			if (glIsProgramPipeline(raymarch_shader.pid))
+			{
+			 glDeleteProgram(raymarch_shader.fsid);
+			 glDeleteProgram(raymarch_shader.vsid);
+			 glBindProgramPipeline(0);
+			 glDeleteProgramPipelines(1, &raymarch_shader.pid);
+			}
+			raymarch_shader = { 0 };
+			raymarch_shader.compiled = false;
+			size_t sizeout = 0;
+			char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
+			if (pix_shader){
+			raymarch_shader = initShader(raymarch_shader, vertex_source, (const char*)pix_shader);
+			dr_free_file_data(pix_shader);
+			}
+	 }
+
+	 if (strcmp(getFileNameFromPath(path), "post.glsl") == 0)
+	 {
+
 	 }
  }
 
