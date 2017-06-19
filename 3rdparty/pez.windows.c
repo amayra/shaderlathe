@@ -101,18 +101,9 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
     SetWindowTextA(hWnd, szWindowTitle);
 
 	ctx = nk_pez_init(hWnd, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT);
-
 	struct nk_font_atlas *atlas;
 	nk_pez_font_stash_begin(&atlas);
-	/*struct nk_font *droid = nk_font_atlas_add_from_file(atlas, "../../../extra_font/DroidSans.ttf", 14, 0);*/
-	/*struct nk_font *roboto = nk_font_atlas_add_from_file(atlas, "../../../extra_font/Roboto-Regular.ttf", 14, 0);*/
-	/*struct nk_font *future = nk_font_atlas_add_from_file(atlas, "../../../extra_font/kenvector_future_thin.ttf", 13, 0);*/
-	/*struct nk_font *clean = nk_font_atlas_add_from_file(atlas, "../../../extra_font/ProggyClean.ttf", 12, 0);*/
-	/*struct nk_font *tiny = nk_font_atlas_add_from_file(atlas, "../../../extra_font/ProggyTiny.ttf", 10, 0);*/
-	/*struct nk_font *cousine = nk_font_atlas_add_from_file(atlas, "../../../extra_font/Cousine-Regular.ttf", 13, 0);*/
 	nk_pez_font_stash_end();
-
-
     // -------------------
     // Start the Game Loop
     // -------------------
@@ -120,18 +111,17 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
 	int needs_refresh = 1;
 	while (!done)
     {
-
-		MSG msg;
 		nk_input_begin(ctx);
 		while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
 			if (msg.message == WM_QUIT)
+			{
 				done = 1;
+				break;
+			}
 			TranslateMessage(&msg);
 			DispatchMessageW(&msg);
 		}
 		nk_input_end(ctx);
-
-
 		/*
 		while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)){
 			if (msg.message == WM_QUIT) { done = 1; break; }

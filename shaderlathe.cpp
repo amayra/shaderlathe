@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <mmsystem.h>
+
 #define MAX_VERTEX_BUFFER 512 * 1024
 #define MAX_ELEMENT_BUFFER 128 * 1024
 
@@ -80,25 +82,31 @@ void PezHandleMouse(int x, int y, int action) { }
 	 }
 	 return path;
  }
-
+unsigned long last_load=0;
  void recompile_shader(char* path)
  {
+
 	 if (strcmp(getFileNameFromPath(path), "raymarch.glsl") == 0)
 	 {
-		if (glIsProgramPipeline(raymarch_shader.pid)){
-		glDeleteProgram(raymarch_shader.fsid);
-		glDeleteProgram(raymarch_shader.vsid);
-		glBindProgramPipeline(0);
-		glDeleteProgramPipelines(1, &raymarch_shader.pid);
-		}
-		raymarch_shader = { 0 };
-		raymarch_shader.compiled = false;
-		size_t sizeout = 0;
-		char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
-		if (pix_shader){
-		raymarch_shader = initShader(raymarch_shader, vertex_source, (const char*)pix_shader);
-		dr_free_file_data(pix_shader);
-		}
+		 unsigned long load = timeGetTime();
+		 if (load-last_load > 200) { //take into account actual shader recompile time
+			 Sleep(100);
+			 if (glIsProgramPipeline(raymarch_shader.pid)) {
+				 glDeleteProgram(raymarch_shader.fsid);
+				 glDeleteProgram(raymarch_shader.vsid);
+				 glBindProgramPipeline(0);
+				 glDeleteProgramPipelines(1, &raymarch_shader.pid);
+			 }
+			 raymarch_shader = { 0 };
+			 raymarch_shader.compiled = false;
+			 size_t sizeout = 0;
+			 char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
+			 if (pix_shader) {
+				 raymarch_shader = initShader(raymarch_shader, vertex_source, (const char*)pix_shader);
+				 dr_free_file_data(pix_shader);
+			 }
+		 }
+		 last_load = timeGetTime();
 	 }
 
 	 if (strcmp(getFileNameFromPath(path), "post.glsl") == 0)
@@ -107,51 +115,51 @@ void PezHandleMouse(int x, int y, int action) { }
 	 }
  }
 
- struct nk_color background;
-void PezRender()
-{
+struct nk_color background;
 
-	if (nk_begin(ctx, "Demo", nk_rect(50, 50, 230, 250),
-		NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | NK_WINDOW_SCALABLE |
+
+const char *playstop[] = { "Pause","Resume","Play","Stop" };
+int action = 0;
+
+void gui()
+{
+	if (nk_begin(ctx, "Shader Timeline", nk_rect(30, 520, 530, 160),
+		NK_WINDOW_BORDER | NK_WINDOW_MOVABLE |
 		NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
 	{
-		enum { EASY, HARD };
-		static int op = EASY;
-		static int property = 20;
-		nk_layout_row_static(ctx, 30, 80, 1);
-		if (nk_button_label(ctx, "button"))
+		nk_layout_row_static(ctx, 30, 80, 4);
+		if (nk_button_label(ctx, "Load"))
 			fprintf(stdout, "button pressed\n");
-
-		nk_layout_row_dynamic(ctx, 30, 2);
-		if (nk_option_label(ctx, "easy", op == EASY)) op = EASY;
-		if (nk_option_label(ctx, "hard", op == HARD)) op = HARD;
-
-		nk_layout_row_dynamic(ctx, 25, 1);
-		nk_property_int(ctx, "Compression:", 0, &property, 100, 10, 1);
-
-		nk_layout_row_dynamic(ctx, 20, 1);
-		nk_label(ctx, "background:", NK_TEXT_LEFT);
-		nk_layout_row_dynamic(ctx, 25, 1);
-		if (nk_combo_begin_color(ctx, background, nk_vec2(nk_widget_width(ctx), 400))) {
-			nk_layout_row_dynamic(ctx, 120, 1);
-			background = nk_color_picker(ctx, background, NK_RGBA);
-			nk_layout_row_dynamic(ctx, 25, 1);
-			background.r = (nk_byte)nk_propertyi(ctx, "#R:", 0, background.r, 255, 1, 1);
-			background.g = (nk_byte)nk_propertyi(ctx, "#G:", 0, background.g, 255, 1, 1);
-			background.b = (nk_byte)nk_propertyi(ctx, "#B:", 0, background.b, 255, 1, 1);
-			background.a = (nk_byte)nk_propertyi(ctx, "#A:", 0, background.a, 255, 1, 1);
-			nk_combo_end(ctx);
+		if (nk_button_label(ctx, playstop[action]))
+		{
+			action++;
+			if (action >= 2)action = 0;
 		}
+		if (nk_button_label(ctx, "Rewind"))
+		{
+			
+		}
+		static size_t prog = 0;
+		int max = 100;
+
+		nk_layout_row_dynamic(ctx, 25, 1);
+		nk_label(ctx, "Playback position:", NK_TEXT_LEFT);
+		nk_layout_row_static(ctx, 30, 500, 2);
+		nk_progress(ctx, &prog, max, NK_MODIFIABLE);
+		
 	}
 	nk_end(ctx);
+	nk_pez_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
+}
 
-
+void PezRender()
+{
 	drfsw_event e;
 	if (drfsw_peek_event(context, &e))
 	{
 		switch (e.type)
 		{
-		case drfsw_event_type_updated: recompile_shader(e.absolutePath);break;
+		case drfsw_event_type_updated: recompile_shader(e.absolutePath); break;
 		default: break;
 		}
 	}
@@ -170,7 +178,7 @@ void PezRender()
 		draw_raymarch(sceneTime, raymarch_shader, 1280, 720);
 	}
 
-	nk_pez_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
+	gui();
 	
 }
 
