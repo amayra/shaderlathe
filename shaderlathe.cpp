@@ -9,6 +9,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define MAX_VERTEX_BUFFER 512 * 1024
+#define MAX_ELEMENT_BUFFER 128 * 1024
+
 struct shader_id
 {
 	int fsid;
@@ -104,8 +107,45 @@ void PezHandleMouse(int x, int y, int action) { }
 	 }
  }
 
+ struct nk_color background;
 void PezRender()
 {
+
+	if (nk_begin(ctx, "Demo", nk_rect(50, 50, 230, 250),
+		NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | NK_WINDOW_SCALABLE |
+		NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
+	{
+		enum { EASY, HARD };
+		static int op = EASY;
+		static int property = 20;
+		nk_layout_row_static(ctx, 30, 80, 1);
+		if (nk_button_label(ctx, "button"))
+			fprintf(stdout, "button pressed\n");
+
+		nk_layout_row_dynamic(ctx, 30, 2);
+		if (nk_option_label(ctx, "easy", op == EASY)) op = EASY;
+		if (nk_option_label(ctx, "hard", op == HARD)) op = HARD;
+
+		nk_layout_row_dynamic(ctx, 25, 1);
+		nk_property_int(ctx, "Compression:", 0, &property, 100, 10, 1);
+
+		nk_layout_row_dynamic(ctx, 20, 1);
+		nk_label(ctx, "background:", NK_TEXT_LEFT);
+		nk_layout_row_dynamic(ctx, 25, 1);
+		if (nk_combo_begin_color(ctx, background, nk_vec2(nk_widget_width(ctx), 400))) {
+			nk_layout_row_dynamic(ctx, 120, 1);
+			background = nk_color_picker(ctx, background, NK_RGBA);
+			nk_layout_row_dynamic(ctx, 25, 1);
+			background.r = (nk_byte)nk_propertyi(ctx, "#R:", 0, background.r, 255, 1, 1);
+			background.g = (nk_byte)nk_propertyi(ctx, "#G:", 0, background.g, 255, 1, 1);
+			background.b = (nk_byte)nk_propertyi(ctx, "#B:", 0, background.b, 255, 1, 1);
+			background.a = (nk_byte)nk_propertyi(ctx, "#A:", 0, background.a, 255, 1, 1);
+			nk_combo_end(ctx);
+		}
+	}
+	nk_end(ctx);
+
+
 	drfsw_event e;
 	if (drfsw_peek_event(context, &e))
 	{
@@ -115,12 +155,22 @@ void PezRender()
 		default: break;
 		}
 	}
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glClearColor(0.0, 0.0, 0.0, 1.0f);
+
+	float bg[4];
+	nk_color_fv(bg, background);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glClearColor(bg[0], bg[1], bg[2], bg[3]);
+	/* IMPORTANT: `nk_sfml_render` modifies some global OpenGL state
+	* with blending, scissor, face culling and depth test and defaults everything
+	* back into a default state. Make sure to either save and restore or
+	* reset your own state after drawing rendering the UI. */
+	
 	if (raymarch_shader.compiled)
 	{
 		draw_raymarch(sceneTime, raymarch_shader, 1280, 720);
 	}
+
+	nk_pez_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
 	
 }
 
@@ -135,5 +185,9 @@ const char* PezInitialize(int width, int height)
 	raymarch_shader = initShader(raymarch_shader,vertex_source, (const char*)pix_shader);
 	free(pix_shader);
 	init_raymarch();
+
+	
+	background = nk_rgb(28, 48, 62);
+
     return "Shader Lathe v0.0";
 }

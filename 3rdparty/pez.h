@@ -15,6 +15,8 @@ void PezRender();                                 // draw scene (Pez swaps the b
 void PezUpdate(unsigned int milliseconds);        // receive elapsed time (e.g., update physics)
 void PezHandleMouse(int x, int y, int action);    // handle mouse action: PEZ_DOWN, PEZ_UP, or PEZ_MOVE
 
+struct nk_context *ctx;
+
 // Here's the Pez configuration section.  Modify these constants to your liking!
 //
 #define PEZ_VIEWPORT_WIDTH 1280

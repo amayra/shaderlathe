@@ -13,6 +13,10 @@
 #ifndef NK_PEZ_GL3_H_
 #define NK_PEZ_GL3_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 NK_API struct nk_context*   nk_pez_init(HWND window, int window_width,int window_height);
 NK_API void                 nk_pez_font_stash_begin(struct nk_font_atlas** atlas);
 NK_API void                 nk_pez_font_stash_end(void);
@@ -22,6 +26,10 @@ NK_API void                 nk_pez_shutdown(void);
 
 NK_API void                 nk_pez_device_create(void);
 NK_API void                 nk_pez_device_destroy(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 /*
@@ -345,6 +353,8 @@ nk_pez_init(HWND window, int width,int height)
 {
 
 	pez.window = window;
+	pez.window_width = width;
+	pez.window_height = height;
 	nk_init_default(&pez.ctx, 0);
 	pez.ctx.clip.copy = nk_pez_clipbard_copy;
 	pez.ctx.clip.paste = nk_pez_clipbard_paste;
