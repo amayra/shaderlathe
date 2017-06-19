@@ -24,11 +24,17 @@
     <ClInclude Include="3rdparty\pez.h">
       <Filter>3rdparty</Filter>
     </ClInclude>
+    <ClInclude Include="3rdparty\nuklear_pez_gl3.h">
+      <Filter>3rdparty</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\nuklear.h">
+      <Filter>3rdparty</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="shaderlathe.cpp" />
     <ClCompile Include="3rdparty\pez.windows.c">
       <Filter>3rdparty</Filter>
     </ClCompile>
-    <ClCompile Include="shaderlathe.cpp" />
   </ItemGroup>
 </Project>

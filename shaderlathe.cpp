@@ -4,6 +4,8 @@
 #include "3rdparty/dr_fsw.h"
 #define DR_IMPLEMENTATION
 #include "3rdparty/dr.h"
+#include "3rdparty/nuklear.h"
+#include "3rdparty/nuklear_pez_gl3.h"
 #include <stdlib.h>
 #include <string.h>
 
