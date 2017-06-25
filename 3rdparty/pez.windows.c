@@ -20,7 +20,7 @@
 #include "nuklear.h"
 #define NK_PEZ_GL3_IMPLEMENTATION
 #include "nuklear_pez_gl3.h"
-
+#include <mmsystem.h>
 LRESULT WINAPI MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ignoreMe2)
@@ -109,6 +109,15 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
     // -------------------
 	int done = 0;
 	int needs_refresh = 1;
+
+	int fps_cap = 60;
+
+
+	DWORD framecount = 0;
+	float rateticks = 1000 / fps_cap; //
+	DWORD baseticks = timeGetTime();
+	DWORD lastticks = baseticks;
+	DWORD rate = fps_cap;
 	while (!done)
     {
 		nk_input_begin(ctx);
@@ -122,17 +131,28 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
 			DispatchMessageW(&msg);
 		}
 		nk_input_end(ctx);
-		/*
-		while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)){
-			if (msg.message == WM_QUIT) { done = 1; break; }
-			DispatchMessage(&msg);
-			}
-		*/
-            DWORD currentTime = GetTickCount();
+
+            DWORD currentTime = timeGetTime();
             DWORD deltaTime = currentTime - previousTime;
             previousTime = currentTime;
+			
+
             PezUpdate(deltaTime);
             PezRender();
+
+			// shitty framelimiter
+			DWORD current_ticks = timeGetTime();
+			DWORD target_ticks = baseticks + (DWORD)((float)framecount * rateticks);
+			framecount++;
+			if (current_ticks <= target_ticks) {
+				DWORD the_delay = target_ticks - current_ticks;
+				Sleep(the_delay);
+			}
+			else {
+				framecount = 0;
+				baseticks = timeGetTime();
+			}
+
             SwapBuffers(hDC);
     }
     UnregisterClassA(szName, wc.hInstance);

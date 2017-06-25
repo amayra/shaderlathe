@@ -4,6 +4,9 @@
     <Filter Include="3rdparty">
       <UniqueIdentifier>{bc3a66b8-4d4b-4787-b3ec-636ce0cdaf77}</UniqueIdentifier>
     </Filter>
+    <Filter Include="3rdparty\gnurocket">
+      <UniqueIdentifier>{7f312c4a-b889-4e84-9998-89e15b556ef7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rdparty\dr.h">
@@ -30,11 +33,29 @@
     <ClInclude Include="3rdparty\nuklear.h">
       <Filter>3rdparty</Filter>
     </ClInclude>
+    <ClInclude Include="3rdparty\rocket\base.h">
+      <Filter>3rdparty\gnurocket</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\rocket\device.h">
+      <Filter>3rdparty\gnurocket</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\rocket\sync.h">
+      <Filter>3rdparty\gnurocket</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\rocket\track.h">
+      <Filter>3rdparty\gnurocket</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="shaderlathe.cpp" />
     <ClCompile Include="3rdparty\pez.windows.c">
       <Filter>3rdparty</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdparty\rocket\device.c">
+      <Filter>3rdparty\gnurocket</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdparty\rocket\track.c">
+      <Filter>3rdparty\gnurocket</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -35,9 +35,15 @@
     <ClInclude Include="3rdparty\nuklear.h" />
     <ClInclude Include="3rdparty\nuklear_pez_gl3.h" />
     <ClInclude Include="3rdparty\pez.h" />
+    <ClInclude Include="3rdparty\rocket\base.h" />
+    <ClInclude Include="3rdparty\rocket\device.h" />
+    <ClInclude Include="3rdparty\rocket\sync.h" />
+    <ClInclude Include="3rdparty\rocket\track.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="3rdparty\pez.windows.c" />
+    <ClCompile Include="3rdparty\rocket\device.c" />
+    <ClCompile Include="3rdparty\rocket\track.c" />
     <ClCompile Include="shaderlathe.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
