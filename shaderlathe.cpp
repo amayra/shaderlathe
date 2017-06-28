@@ -11,13 +11,28 @@
 #include <mmsystem.h>
 #include "3rdparty/gb_math.h"
 #include "3rdparty/rocket/sync.h"
+#include<iostream>
+#include<vector>
+#include<cstring>
+#include<fstream>
 #define MAX_VERTEX_BUFFER 512 * 1024
 #define MAX_ELEMENT_BUFFER 128 * 1024
 
-static struct sync_device *device;
+static struct sync_device *device = NULL;
 #if !defined(SYNC_PLAYER)
 static struct sync_cb cb;
 #endif
+
+
+
+struct glsl2rocketmap
+{
+	std::string name;
+	int prog_number;
+};
+struct sync_track *s_tracks;
+std::vector<glsl2rocketmap>rocket_map;
+int rocketmappos = 0;
 
 const float bpm = 180.0f;
 const float rpb = 8.0f;
@@ -78,6 +93,7 @@ int rocket_init(const char* prefix)
 		printf("Unable to create rocketDevice\n");
 		return 0;
 	}
+	s_tracks = NULL;
 
 #if !defined( SYNC_PLAYER )
 	cb.is_playing = xis_playing;
@@ -175,6 +191,33 @@ struct FBOELEM {
 	GLint status;
 };
 
+
+
+void glsl_to_rocketvar(int prog)
+{
+	if (device)
+	{
+		//convert GLSL uniforms to rocket variables
+		int total = -1;
+		glGetProgramiv(prog, GL_ACTIVE_UNIFORMS, &total);
+		for (int i = 0; i < total; ++i) {
+			int name_len = -1, num = -1;
+			GLenum type = GL_ZERO;
+			char name[100];
+			glGetActiveUniform(prog, GLuint(i), sizeof(name) - 1,
+				&name_len, &num, &type, name);
+			name[name_len] = 0;
+			if (type == GL_FLOAT && strstr(name, "_gnurocket") != NULL) {
+				{
+					rocket_map[rocketmappos].name = name;
+					rocket_map[rocketmappos].prog_number = prog;
+					rocketmappos++;
+				}
+			}
+		}
+	}
+}
+
 shader_id initShader(shader_id shad,const char *vsh, const char *fsh)
 {
 	shad.compiled = true;
@@ -233,6 +276,8 @@ unsigned long last_load=0;
 
 	 if (strcmp(getFileNameFromPath(path), "raymarch.glsl") == 0)
 	 {
+		 rocket_map.clear();
+		 rocketmappos = 0;
 		 unsigned long load = timeGetTime();
 		 if (load-last_load > 200) { //take into account actual shader recompile time
 			 Sleep(100);
@@ -250,6 +295,7 @@ unsigned long last_load=0;
 				 raymarch_shader = initShader(raymarch_shader, vertex_source, (const char*)pix_shader);
 				 dr_free_file_data(pix_shader);
 			 }
+			 glsl_to_rocketvar(raymarch_shader.pid);
 		 }
 		 last_load = timeGetTime();
 	 }
@@ -329,6 +375,10 @@ void PezRender()
 
 const char* PezInitialize(int width, int height)
 {
+	
+	rocket_init("rocket");
+
+
 	context = drfsw_create_context();
 	TCHAR path[512] = { 0 };
 	dr_get_executable_directory_path(path, sizeof(path));
