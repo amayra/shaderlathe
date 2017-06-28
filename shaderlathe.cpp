@@ -188,15 +188,18 @@ struct FBOELEM {
 };
 
 
-void update_rocket()
+void update_rocket(int prog)
 {
 	if (device)
 	{
 		float row_f = ms_to_row_f(curtime_ms, rps);
 		for (int i = 0; i < rocket_map.size(); i++)
 		{
-			const sync_track *track = sync_get_track(device, rocket_map[i].name.c_str());
-			rocket_map[i].val = sync_get_val(track, row_f);
+			if (prog == rocket_map[i].prog_number)
+			{
+				const sync_track *track = sync_get_track(device, rocket_map[i].name.c_str());
+				rocket_map[i].val = sync_get_val(track, row_f);
+			}
 		}
 	}
 }
@@ -373,7 +376,7 @@ void PezRender()
 	* reset your own state after drawing rendering the UI. */
 	
 
-	update_rocket();
+	update_rocket(raymarch_shader.pid);
 
 	if (raymarch_shader.compiled)
 	{

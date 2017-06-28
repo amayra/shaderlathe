@@ -89,11 +89,13 @@ void draw_raymarch(float time, shader_id program, int xres, int yres){
 	glProgramUniform1i(program.fsid,2, 0);
 	float fparams[4] = { xres,yres, time, 0.0 };
 	glProgramUniform4fv(program.fsid, 1, 1, fparams);
-
 	for (int i = 0; i < rocket_map.size(); i++)
 	{
-		int uniform_loc = glGetUniformLocation(program.pid, rocket_map[i].name.c_str());
-		glUniform1f(uniform_loc,rocket_map[i].val);
+		if (program.pid == rocket_map[i].prog_number)
+		{
+			int uniform_loc = glGetUniformLocation(program.pid, rocket_map[i].name.c_str());
+			glUniform1f(uniform_loc, rocket_map[i].val);
+		}
 	}
 	// bind the vao
 	glEnable(GL_BLEND);
