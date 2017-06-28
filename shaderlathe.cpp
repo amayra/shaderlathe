@@ -32,7 +32,6 @@ struct glsl2rocketmap
 };
 struct sync_track *s_tracks;
 std::vector<glsl2rocketmap>rocket_map;
-int rocketmappos = 0;
 
 const float bpm = 180.0f;
 const float rpb = 8.0f;
@@ -209,9 +208,10 @@ void glsl_to_rocketvar(int prog)
 			name[name_len] = 0;
 			if (type == GL_FLOAT && strstr(name, "_gnurocket") != NULL) {
 				{
-					rocket_map[rocketmappos].name = name;
-					rocket_map[rocketmappos].prog_number = prog;
-					rocketmappos++;
+					glsl2rocketmap subObj;
+					subObj.name = name;
+					subObj.prog_number = prog;
+					rocket_map.push_back(subObj);
 				}
 			}
 		}
@@ -277,7 +277,6 @@ unsigned long last_load=0;
 	 if (strcmp(getFileNameFromPath(path), "raymarch.glsl") == 0)
 	 {
 		 rocket_map.clear();
-		 rocketmappos = 0;
 		 unsigned long load = timeGetTime();
 		 if (load-last_load > 200) { //take into account actual shader recompile time
 			 Sleep(100);
