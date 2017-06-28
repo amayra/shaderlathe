@@ -23,14 +23,12 @@ static struct sync_device *device = NULL;
 static struct sync_cb cb;
 #endif
 
-
-
 struct glsl2rocketmap
 {
 	std::string name;
 	int prog_number;
+	float val;
 };
-struct sync_track *s_tracks;
 std::vector<glsl2rocketmap>rocket_map;
 
 const float bpm = 180.0f;
@@ -92,7 +90,6 @@ int rocket_init(const char* prefix)
 		printf("Unable to create rocketDevice\n");
 		return 0;
 	}
-	s_tracks = NULL;
 
 #if !defined( SYNC_PLAYER )
 	cb.is_playing = xis_playing;
@@ -191,6 +188,18 @@ struct FBOELEM {
 };
 
 
+void update_rocket()
+{
+	if (device)
+	{
+		float row_f = ms_to_row_f(curtime_ms, rps);
+		for (int i = 0; i < rocket_map.size(); i++)
+		{
+			const sync_track *track = sync_get_track(device, rocket_map[i].name.c_str());
+			rocket_map[i].val = sync_get_val(track, row_f);
+		}
+	}
+}
 
 void glsl_to_rocketvar(int prog)
 {
@@ -363,6 +372,9 @@ void PezRender()
 	* back into a default state. Make sure to either save and restore or
 	* reset your own state after drawing rendering the UI. */
 	
+
+	update_rocket();
+
 	if (raymarch_shader.compiled)
 	{
 		draw_raymarch(sceneTime, raymarch_shader, 1280, 720);
@@ -388,6 +400,7 @@ const char* PezInitialize(int width, int height)
 	free(pix_shader);
 	init_raymarch();
 
+	glsl_to_rocketvar(raymarch_shader.pid);
 	
 	background = nk_rgb(28, 48, 62);
 
