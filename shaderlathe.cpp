@@ -263,6 +263,7 @@ fail:
 
 shader_id raymarch_shader = { 0 };
 static float sceneTime = 0;
+static bool isseeking = false;
 drfsw_context* context = NULL;
 
 #include "raymarch.h"
@@ -270,7 +271,7 @@ drfsw_context* context = NULL;
 void PezHandleMouse(int x, int y, int action) { }
 
 void PezUpdate(unsigned int elapsedMilliseconds) {
-	sceneTime += elapsedMilliseconds * 0.001 ; 
+	if(!isseeking)sceneTime += elapsedMilliseconds * 0.001 ; 
 
 }
 
@@ -323,7 +324,7 @@ unsigned long last_load=0;
 struct nk_color background;
 
 
-const char *playstop[] = { "Pause","Resume","Play","Stop" };
+const char *playstop[] = { "Pause","Resume"};
 int action = 0;
 
 void gui()
@@ -335,23 +336,25 @@ void gui()
 		nk_layout_row_static(ctx, 30, 80, 4);
 		if (nk_button_label(ctx, "Load"))
 			fprintf(stdout, "button pressed\n");
-		if (nk_button_label(ctx, playstop[action]))
+		if (nk_button_label(ctx, playstop[0]))
 		{
-			action++;
-			if (action >= 2)action = 0;
 		}
 		if (nk_button_label(ctx, "Rewind"))
 		{
 			sceneTime = 0;
 		}
 		int max = 300;
-		static size_t prog = 0;
+		static float prog = 0;
 		prog = sceneTime;
 		nk_layout_row_dynamic(ctx, 25, 1);
-		nk_label(ctx, "Playback position:", NK_TEXT_LEFT);
+		char label1[100] = { 0 };
+		sprintf(label1, "Progress: %.2f seconds", prog);
+		nk_label(ctx, label1, NK_TEXT_LEFT);
 		nk_layout_row_static(ctx, 30, 500, 2);
-		if(nk_progress(ctx, &prog, max, NK_MODIFIABLE))
+		isseeking = false;
+		if(nk_slider_float(ctx, 0, (float*)&prog, max, 0.1))
 		{
+			isseeking = true;
 			sceneTime = prog;
 		}
 		
@@ -376,7 +379,7 @@ void PezRender()
 	nk_color_fv(bg, background);
 	glClear(GL_COLOR_BUFFER_BIT);
 	glClearColor(bg[0], bg[1], bg[2], bg[3]);
-	gui();
+	
 
 	/* IMPORTANT: `nk_sfml_render` modifies some global OpenGL state
 	* with blending, scissor, face culling and depth test and defaults everything
@@ -390,6 +393,7 @@ void PezRender()
 	{
 		draw_raymarch(sceneTime, raymarch_shader, 1280, 720);
 	}
+	gui();
 	nk_pez_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
 
 }
