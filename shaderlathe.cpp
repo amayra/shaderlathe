@@ -269,7 +269,9 @@ drfsw_context* context = NULL;
 
 void PezHandleMouse(int x, int y, int action) { }
 
- void PezUpdate(unsigned int elapsedMilliseconds) { sceneTime += elapsedMilliseconds/1000.; }
+
+
+void PezUpdate(unsigned int elapsedMilliseconds) { sceneTime += elapsedMilliseconds * 0.001 ; }
 
  char* getFileNameFromPath(char* path)
  {

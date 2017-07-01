@@ -110,7 +110,7 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
 	int done = 0;
 	int needs_refresh = 1;
 
-	int fps_cap = 60;
+	int fps_cap = 30;
 
 
 	DWORD framecount = 0;
