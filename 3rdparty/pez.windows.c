@@ -137,8 +137,9 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
             previousTime = currentTime;
 			
 
-            PezUpdate(deltaTime);
+          
             PezRender();
+			PezUpdate(deltaTime);
 
 			// shitty framelimiter
 			DWORD current_ticks = timeGetTime();

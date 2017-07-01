@@ -269,9 +269,10 @@ drfsw_context* context = NULL;
 
 void PezHandleMouse(int x, int y, int action) { }
 
+void PezUpdate(unsigned int elapsedMilliseconds) {
+	sceneTime += elapsedMilliseconds * 0.001 ; 
 
-
-void PezUpdate(unsigned int elapsedMilliseconds) { sceneTime += elapsedMilliseconds * 0.001 ; }
+}
 
  char* getFileNameFromPath(char* path)
  {
@@ -341,19 +342,22 @@ void gui()
 		}
 		if (nk_button_label(ctx, "Rewind"))
 		{
-			
+			sceneTime = 0;
 		}
+		int max = 300;
 		static size_t prog = 0;
-		int max = 100;
-
+		prog = sceneTime;
 		nk_layout_row_dynamic(ctx, 25, 1);
 		nk_label(ctx, "Playback position:", NK_TEXT_LEFT);
 		nk_layout_row_static(ctx, 30, 500, 2);
-		nk_progress(ctx, &prog, max, NK_MODIFIABLE);
+		if(nk_progress(ctx, &prog, max, NK_MODIFIABLE))
+		{
+			sceneTime = prog;
+		}
 		
 	}
 	nk_end(ctx);
-	nk_pez_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
+	
 }
 
 void PezRender()
@@ -372,6 +376,8 @@ void PezRender()
 	nk_color_fv(bg, background);
 	glClear(GL_COLOR_BUFFER_BIT);
 	glClearColor(bg[0], bg[1], bg[2], bg[3]);
+	gui();
+
 	/* IMPORTANT: `nk_sfml_render` modifies some global OpenGL state
 	* with blending, scissor, face culling and depth test and defaults everything
 	* back into a default state. Make sure to either save and restore or
@@ -384,9 +390,8 @@ void PezRender()
 	{
 		draw_raymarch(sceneTime, raymarch_shader, 1280, 720);
 	}
+	nk_pez_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
 
-	gui();
-	
 }
 
 const char* PezInitialize(int width, int height)
