@@ -263,6 +263,7 @@ fail:
 
 shader_id raymarch_shader = { 0 };
 static float sceneTime = 0;
+static float scenetime_ms = 0;
 static bool isseeking = false;
 drfsw_context* context = NULL;
 
@@ -271,7 +272,7 @@ drfsw_context* context = NULL;
 void PezHandleMouse(int x, int y, int action) { }
 
 void PezUpdate(unsigned int elapsedMilliseconds) {
-	if(!isseeking)sceneTime += elapsedMilliseconds * 0.001 ; 
+	scenetime_ms=elapsedMilliseconds * 0.001 ; 
 
 }
 
@@ -326,45 +327,58 @@ struct nk_color background;
 
 const char *playstop[] = { "Pause","Resume"};
 int action = 0;
+bool seek = false;
+
+
+double pround(double x, int precision)
+{
+	if (x == 0.)
+		return x;
+	int ex = floor(log10(abs(x))) - precision + 1;
+	double div = pow(10, ex);
+	return floor(x / div + 0.5) * div;
+}
 
 void gui()
 {
-	if (nk_begin(ctx, "Shader Timeline", nk_rect(30, 520, 530, 160),
-		NK_WINDOW_BORDER | NK_WINDOW_MOVABLE |
-		NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
+	if (ctx)
 	{
-		nk_layout_row_static(ctx, 30, 80, 4);
-		if (nk_button_label(ctx, "Load"))
-			fprintf(stdout, "button pressed\n");
-		if (nk_button_label(ctx, playstop[0]))
+		if (nk_begin(ctx, "Shader Timeline", nk_rect(30, 520, 530, 160),
+			NK_WINDOW_BORDER | NK_WINDOW_MOVABLE |
+			NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
 		{
+			nk_layout_row_static(ctx, 30, 80, 4);
+			if (nk_button_label(ctx, "Load"))
+				fprintf(stdout, "button pressed\n");
+			if (nk_button_label(ctx, playstop[0]))
+			{
+			}
+			if (nk_button_label(ctx, "Rewind"))
+			{
+				sceneTime = 0;
+			}
+			int max = 300;
+			nk_layout_row_dynamic(ctx, 25, 1);
+			char label1[100] = { 0 };
+			sprintf(label1, "Progress: %.2f seconds", sceneTime);
+			nk_label(ctx, label1, NK_TEXT_LEFT);
+			nk_layout_row_static(ctx, 30, 500, 2);
+			
+			seek = nk_slider_float(ctx, 0, (float*)&sceneTime, max, 0.1);
+			
+
+		    
+
 		}
-		if (nk_button_label(ctx, "Rewind"))
-		{
-			sceneTime = 0;
-		}
-		int max = 300;
-		static float prog = 0;
-		prog = sceneTime;
-		nk_layout_row_dynamic(ctx, 25, 1);
-		char label1[100] = { 0 };
-		sprintf(label1, "Progress: %.2f seconds", prog);
-		nk_label(ctx, label1, NK_TEXT_LEFT);
-		nk_layout_row_static(ctx, 30, 500, 2);
-		isseeking = false;
-		if(nk_slider_float(ctx, 0, (float*)&prog, max, 0.1))
-		{
-			isseeking = true;
-			sceneTime = prog;
-		}
-		
+		nk_end(ctx);
 	}
-	nk_end(ctx);
+
 	
 }
 
 void PezRender()
 {
+	
 	drfsw_event e;
 	if (drfsw_peek_event(context, &e))
 	{
@@ -385,6 +399,15 @@ void PezRender()
 	* with blending, scissor, face culling and depth test and defaults everything
 	* back into a default state. Make sure to either save and restore or
 	* reset your own state after drawing rendering the UI. */
+
+	if (seek)
+	{
+		sceneTime = floor(sceneTime);
+	}
+	else
+	{
+		sceneTime += scenetime_ms;
+	}
 	
 
 	update_rocket(raymarch_shader.pid);
@@ -392,8 +415,9 @@ void PezRender()
 	if (raymarch_shader.compiled)
 	{
 		draw_raymarch(sceneTime, raymarch_shader, 1280, 720);
+		
 	}
-	gui();
+	
 	nk_pez_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
 
 }

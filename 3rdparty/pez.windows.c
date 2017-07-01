@@ -26,7 +26,7 @@ LRESULT WINAPI MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ignoreMe2)
 {
     LPCSTR szName = "Shader Lathe";
-    WNDCLASSEXA wc = { sizeof(WNDCLASSEX), CS_CLASSDC, MsgProc, 0L, 0L, GetModuleHandle(0), 0, 0, 0, 0, szName, 0 };
+    WNDCLASSEXA wc = { sizeof(WNDCLASSEX), CS_DBLCLKS, MsgProc, 0L, 0L, GetModuleHandle(0), 0, 0, 0, 0, szName, 0 };
 	DWORD dwExStyle = WS_EX_APPWINDOW;// | WS_EX_WINDOWEDGE;
 	DWORD dwStyle = WS_VISIBLE | WS_CAPTION | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_SYSMENU;
     RECT rect;
@@ -110,7 +110,7 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
 	int done = 0;
 	int needs_refresh = 1;
 
-	int fps_cap = 30;
+	int fps_cap = 60;
 
 
 	DWORD framecount = 0;
@@ -132,6 +132,8 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
 		}
 		nk_input_end(ctx);
 
+		gui();
+
             DWORD currentTime = timeGetTime();
             DWORD deltaTime = currentTime - previousTime;
             previousTime = currentTime;
@@ -142,7 +144,7 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
 			PezUpdate(deltaTime);
 
 			// shitty framelimiter
-			DWORD current_ticks = timeGetTime();
+	/*		DWORD current_ticks = timeGetTime();
 			DWORD target_ticks = baseticks + (DWORD)((float)framecount * rateticks);
 			framecount++;
 			if (current_ticks <= target_ticks) {
@@ -152,7 +154,7 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
 			else {
 				framecount = 0;
 				baseticks = timeGetTime();
-			}
+			}*/
 
             SwapBuffers(hDC);
     }
