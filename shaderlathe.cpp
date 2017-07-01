@@ -394,11 +394,7 @@ void PezRender()
 	glClear(GL_COLOR_BUFFER_BIT);
 	glClearColor(bg[0], bg[1], bg[2], bg[3]);
 	
-
-	/* IMPORTANT: `nk_sfml_render` modifies some global OpenGL state
-	* with blending, scissor, face culling and depth test and defaults everything
-	* back into a default state. Make sure to either save and restore or
-	* reset your own state after drawing rendering the UI. */
+	gui();
 
 	if (seek)
 	{
@@ -434,6 +430,7 @@ const char* PezInitialize(int width, int height)
 	drfsw_add_directory(context, path);
 	size_t sizeout;
 	char* pix_shader = dr_open_and_read_text_file("raymarch.glsl", &sizeout);
+	if (pix_shader == NULL)return NULL;
 	raymarch_shader = initShader(raymarch_shader,vertex_source, (const char*)pix_shader);
 	free(pix_shader);
 	init_raymarch();

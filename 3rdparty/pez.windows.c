@@ -98,6 +98,7 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
     hRC = newRC;
     wglMakeCurrent(hDC, hRC);
     const char* szWindowTitle = PezInitialize(PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT);
+    if(!szWindowTitle)goto bomb;
     SetWindowTextA(hWnd, szWindowTitle);
 
 	ctx = nk_pez_init(hWnd, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT);
@@ -132,8 +133,6 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
 		}
 		nk_input_end(ctx);
 
-		gui();
-
             DWORD currentTime = timeGetTime();
             DWORD deltaTime = currentTime - previousTime;
             previousTime = currentTime;
@@ -158,6 +157,7 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
 
             SwapBuffers(hDC);
     }
+    bomb:
     UnregisterClassA(szName, wc.hInstance);
 	ExitProcess(0);
 
