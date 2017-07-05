@@ -293,9 +293,10 @@ unsigned long last_load=0;
 
 	 if (strcmp(getFileNameFromPath(path), "raymarch.glsl") == 0)
 	 {
-		 rocket_map.clear();
+		
 		 unsigned long load = timeGetTime();
 		 if (load-last_load > 200) { //take into account actual shader recompile time
+			 rocket_map.clear();
 			 Sleep(100);
 			 if (glIsProgramPipeline(raymarch_shader.pid)) {
 				 glDeleteProgram(raymarch_shader.fsid);
@@ -365,10 +366,6 @@ void gui()
 			nk_layout_row_static(ctx, 30, 500, 2);
 			
 			seek = nk_slider_float(ctx, 0, (float*)&sceneTime, max, 0.1);
-			
-
-		    
-
 		}
 		nk_end(ctx);
 	}
@@ -427,6 +424,7 @@ const char* PezInitialize(int width, int height)
 	context = drfsw_create_context();
 	TCHAR path[512] = { 0 };
 	dr_get_executable_directory_path(path, sizeof(path));
+	dr_set_current_directory(path);
 	drfsw_add_directory(context, path);
 	size_t sizeout;
 	char* pix_shader = dr_open_and_read_text_file("raymarch.glsl", &sizeout);
