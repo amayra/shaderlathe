@@ -168,7 +168,8 @@ usleep(16000);
 struct glsl2configmap
 {
 	char name[100];
-	int prog_number;
+	int frag_number;
+	int program_num;
 	float val;
 };
 std::vector<glsl2configmap>shaderconfig_map;
@@ -206,24 +207,25 @@ void update_rocket()
 	}
 }
 
-void glsl_to_config(int prog)
+void glsl_to_config(shader_id prog)
 {
 	if (device)
 	{
 		//convert GLSL uniforms to variables
 		int total = -1;
-		glGetProgramiv(prog, GL_ACTIVE_UNIFORMS, &total);
+		glGetProgramiv(prog.fsid, GL_ACTIVE_UNIFORMS, &total);
 		for (int i = 0; i < total; ++i) {
 			int name_len = -1, num = -1;
 			GLenum type = GL_ZERO;
 			char name[100] = { 0 };
-			glGetActiveUniform(prog, GLuint(i), sizeof(name) - 1,
+			glGetActiveUniform(prog.fsid, GLuint(i), sizeof(name) - 1,
 				&name_len, &num, &type, name);
 			name[name_len] = 0;
 			if (type == GL_FLOAT) {
 			glsl2configmap subObj = {0};
 			strcpy(subObj.name, name);
-			subObj.prog_number = prog;
+			subObj.frag_number = prog.fsid;
+			subObj.program_num = prog.pid;
 			shaderconfig_map.push_back(subObj);
 			}
 		}
@@ -360,8 +362,12 @@ void draw_raymarch(float time, shader_id program, int xres, int yres){
 	glProgramUniform4fv(program.fsid, 1, 1, fparams);
 	for (int i = 0; i < shaderconfig_map.size(); i++)
 	{
-			int uniform_loc = glGetUniformLocation(shaderconfig_map[i].prog_number, shaderconfig_map[i].name);
-			glUniform1f(uniform_loc, shaderconfig_map[i].val);
+		if (shaderconfig_map[i].program_num = program.pid)
+		{
+			int uniform_loc = glGetUniformLocation(program.fsid, shaderconfig_map[i].name);
+			glProgramUniform1f(program.fsid, uniform_loc, shaderconfig_map[i].val);
+		}
+			
 	}
 	// bind the vao
 	glEnable(GL_BLEND);
@@ -418,7 +424,7 @@ unsigned long last_load=0;
 				 raymarch_shader = initShader(raymarch_shader, vertex_source, (const char*)pix_shader);
 				 dr_free_file_data(pix_shader);
 			 }
-			 glsl_to_config(raymarch_shader.fsid);
+			 glsl_to_config(raymarch_shader);
 		 }
 		 last_load = timeGetTime();
 	 }
@@ -482,9 +488,12 @@ void gui()
 		{
 			for (int i = 0; i < shaderconfig_map.size(); i++) {
 				if (strstr(shaderconfig_map[i].name, "_rkt") == NULL) {
-					char label1[100] = { 0 };
 					nk_layout_row_dynamic(ctx, 25, 1);
-					nk_property_float(ctx, shaderconfig_map[i].name, 0.0, &shaderconfig_map[i].val, 3.0, 0.1, 0.1);
+					char label1[100] = { 0 };
+					sprintf(label1, "%s: %.2f", shaderconfig_map[i].name, shaderconfig_map[i].val);
+					nk_label(ctx, label1, NK_TEXT_LEFT);
+					nk_layout_row_static(ctx, 30, 250, 2);
+					nk_slider_float(ctx, 0, &shaderconfig_map[i].val, 100, 0.1);
 				}
 			}
 		}
@@ -558,7 +567,7 @@ const char* PezInitialize(int width, int height)
 	init_raymarch();
 
 	shaderconfig_map.clear();
-	glsl_to_config(raymarch_shader.fsid);
+	glsl_to_config(raymarch_shader);
 	
 	background = nk_rgb(28, 48, 62);
 
