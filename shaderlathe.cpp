@@ -23,13 +23,7 @@ static struct sync_device *device = NULL;
 static struct sync_cb cb;
 #endif
 
-struct glsl2rocketmap
-{
-	std::string name;
-	int prog_number;
-	float val;
-};
-std::vector<glsl2rocketmap>rocket_map;
+
 
 const float bpm = 180.0f;
 const float rpb = 8.0f;
@@ -171,6 +165,14 @@ usleep(16000);
 }
 }*/
 
+struct glsl2configmap
+{
+	char name[100];
+	int prog_number;
+	float val;
+};
+std::vector<glsl2configmap>shaderconfig_map;
+
 struct shader_id
 {
 	int fsid;
@@ -188,43 +190,41 @@ struct FBOELEM {
 };
 
 
-void update_rocket(int prog)
+void update_rocket()
 {
 	if (device)
 	{
 		float row_f = ms_to_row_f(curtime_ms, rps);
-		for (int i = 0; i < rocket_map.size(); i++)
+		for (int i = 0; i < shaderconfig_map.size(); i++)
 		{
-			if (prog == rocket_map[i].prog_number)
+			if (strstr(shaderconfig_map[i].name, "_rkt") != NULL)
 			{
-				const sync_track *track = sync_get_track(device, rocket_map[i].name.c_str());
-				rocket_map[i].val = sync_get_val(track, row_f);
+				const sync_track *track = sync_get_track(device, shaderconfig_map[i].name);
+				shaderconfig_map[i].val = sync_get_val(track, row_f);
 			}
 		}
 	}
 }
 
-void glsl_to_rocketvar(int prog)
+void glsl_to_config(int prog)
 {
 	if (device)
 	{
-		//convert GLSL uniforms to rocket variables
+		//convert GLSL uniforms to variables
 		int total = -1;
 		glGetProgramiv(prog, GL_ACTIVE_UNIFORMS, &total);
 		for (int i = 0; i < total; ++i) {
 			int name_len = -1, num = -1;
 			GLenum type = GL_ZERO;
-			char name[100];
+			char name[100] = { 0 };
 			glGetActiveUniform(prog, GLuint(i), sizeof(name) - 1,
 				&name_len, &num, &type, name);
 			name[name_len] = 0;
-			if (type == GL_FLOAT && strstr(name, "_gnurocket") != NULL) {
-				{
-					glsl2rocketmap subObj;
-					subObj.name = name;
-					subObj.prog_number = prog;
-					rocket_map.push_back(subObj);
-				}
+			if (type == GL_FLOAT) {
+			glsl2configmap subObj = {0};
+			strcpy(subObj.name, name);
+			subObj.prog_number = prog;
+			shaderconfig_map.push_back(subObj);
 			}
 		}
 	}
@@ -267,7 +267,113 @@ static float scenetime_ms = 0;
 static bool isseeking = false;
 drfsw_context* context = NULL;
 
-#include "raymarch.h"
+GLuint scene_vao, scene_texture;
+
+#define GLSL(src) #src
+
+const char vertex_source[] =
+"#version 330\n"
+"layout(location = 0) in vec4 vposition;\n"
+"layout(location = 1) in vec2 vtexcoord;\n"
+"out vec2 ftexcoord;\n"
+"void main() {\n"
+"   ftexcoord = vtexcoord;\n"
+"   gl_Position =vec4(vposition.xy, 0.0f, 1.0f);\n"
+"}\n";
+
+void init_raymarch()
+{
+
+	// get texture uniform location
+
+
+	// vao and vbo handle
+	GLuint vbo;
+
+	// generate and bind the vao
+	glGenVertexArrays(1, &scene_vao);
+	glBindVertexArray(scene_vao);
+
+	// generate and bind the vertex buffer object, to be used with VAO
+	glGenBuffers(1, &vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	// data for a fullscreen quad (this time with texture coords)
+	// we use the texture coords for whenever a LUT is loaded
+	typedef struct
+	{
+		float   x;
+		float   y;
+		float   z;
+		float   u;
+		float   v;
+	} VBufVertex;
+	VBufVertex vertexData[] = {
+		//  X     Y     Z           U     V     
+		1.0f, 1.0f, 0.0f, 1.0f, 1.0f, // vertex 0
+		-1.0f, 1.0f, 0.0f, 0.0f, 1.0f, // vertex 1
+		1.0f, -1.0f, 0.0f, 1.0f, 0.0f, // vertex 2
+		1.0f, -1.0f, 0.0f, 1.0f, 0.0f, // vertex 2
+		-1.0f, -1.0f, 0.0f, 0.0f, 0.0f, // vertex 3
+		-1.0f, 1.0f, 0.0f, 0.0f, 1.0f, // vertex 1
+	}; // 6 vertices with 5 components (floats) each
+	// fill with data
+	glBufferData(GL_ARRAY_BUFFER, sizeof(VBufVertex) * 6, vertexData, GL_STATIC_DRAW);
+	// set up generic attrib pointers
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VBufVertex), (void*)offsetof(VBufVertex, x));
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(VBufVertex), (void*)offsetof(VBufVertex, u));
+	// "unbind" voa
+	glBindVertexArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	int width = 32;
+	int height = 32;
+	GLubyte image[4 * 32 * 32] = { 0 };
+	for (int j = 0; j < height; ++j) {
+		for (int i = 0; i < width; ++i) {
+			size_t index = j*width + i;
+			image[4 * index + 0] = 0xFF * (j / 10 % 2)*(i / 10 % 2); // R
+			image[4 * index + 1] = 0xFF * (j / 13 % 2)*(i / 13 % 2); // G
+			image[4 * index + 2] = 0xFF * (j / 17 % 2)*(i / 17 % 2); // B
+			image[4 * index + 3] = 0xFF; // A
+		}
+	}
+
+	glGenTextures(1, &scene_texture);
+	glBindTexture(GL_TEXTURE_2D, scene_texture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	// set texture content
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+	glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void draw_raymarch(float time, shader_id program, int xres, int yres){
+	glBindProgramPipeline(program.pid);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, scene_texture);
+	glProgramUniform1i(program.fsid, 2, 0);
+	float fparams[4] = { xres, yres, time, 0.0 };
+	glProgramUniform4fv(program.fsid, 1, 1, fparams);
+	for (int i = 0; i < shaderconfig_map.size(); i++)
+	{
+			int uniform_loc = glGetUniformLocation(shaderconfig_map[i].prog_number, shaderconfig_map[i].name);
+			glUniform1f(uniform_loc, shaderconfig_map[i].val);
+	}
+	// bind the vao
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBindVertexArray(scene_vao);
+	// draw
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glBindVertexArray(0);
+	glBindProgramPipeline(0);
+	glDisable(GL_BLEND);
+}
 
 void PezHandleMouse(int x, int y, int action) { }
 
@@ -296,7 +402,7 @@ unsigned long last_load=0;
 		
 		 unsigned long load = timeGetTime();
 		 if (load-last_load > 200) { //take into account actual shader recompile time
-			 rocket_map.clear();
+			 shaderconfig_map.clear();
 			 Sleep(100);
 			 if (glIsProgramPipeline(raymarch_shader.pid)) {
 				 glDeleteProgram(raymarch_shader.fsid);
@@ -312,7 +418,7 @@ unsigned long last_load=0;
 				 raymarch_shader = initShader(raymarch_shader, vertex_source, (const char*)pix_shader);
 				 dr_free_file_data(pix_shader);
 			 }
-			 glsl_to_rocketvar(raymarch_shader.pid);
+			 glsl_to_config(raymarch_shader.fsid);
 		 }
 		 last_load = timeGetTime();
 	 }
@@ -367,7 +473,25 @@ void gui()
 			
 			seek = nk_slider_float(ctx, 0, (float*)&sceneTime, max, 0.1);
 		}
+	
 		nk_end(ctx);
+
+		if (nk_begin(ctx, "Raymarch Uniforms", nk_rect(1000, 30, 300, 200),
+			NK_WINDOW_BORDER | NK_WINDOW_MOVABLE |
+			NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
+		{
+			for (int i = 0; i < shaderconfig_map.size(); i++) {
+				if (strstr(shaderconfig_map[i].name, "_rkt") == NULL) {
+					char label1[100] = { 0 };
+					nk_layout_row_dynamic(ctx, 25, 1);
+					nk_property_float(ctx, shaderconfig_map[i].name, 0.0, &shaderconfig_map[i].val, 3.0, 0.1, 0.1);
+				}
+			}
+		}
+	   nk_end(ctx);
+
+	
+		
 	}
 
 	
@@ -403,7 +527,7 @@ void PezRender()
 	}
 	
 
-	update_rocket(raymarch_shader.pid);
+	update_rocket();
 
 	if (raymarch_shader.compiled)
 	{
@@ -433,7 +557,8 @@ const char* PezInitialize(int width, int height)
 	free(pix_shader);
 	init_raymarch();
 
-	glsl_to_rocketvar(raymarch_shader.pid);
+	shaderconfig_map.clear();
+	glsl_to_config(raymarch_shader.fsid);
 	
 	background = nk_rgb(28, 48, 62);
 
