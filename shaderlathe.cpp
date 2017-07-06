@@ -213,13 +213,13 @@ void update_rocket()
 	}
 }
 
-void glsl_to_config(shader_id prog)
+void glsl_to_config(shader_id prog, char *shader_path)
 {
 	if (device)
 	{
 		vector<string>lines;
 		lines.clear();
-		ifstream openFile("raymarch.glsl");
+		ifstream openFile(shader_path);
 		string stringToStore; //string to store file line
 		while (getline(openFile, stringToStore)) { //checking for existence of file
 			lines.push_back(stringToStore);
@@ -461,7 +461,7 @@ unsigned long last_load=0;
 			 if (pix_shader) {
 				 raymarch_shader = initShader(raymarch_shader, vertex_source, (const char*)pix_shader);
 
-				 glsl_to_config(raymarch_shader);
+				 glsl_to_config(raymarch_shader, "raymarch.glsl");
 				 dr_free_file_data(pix_shader);
 				
 			 }
@@ -606,7 +606,7 @@ const char* PezInitialize(int width, int height)
 	raymarch_shader = initShader(raymarch_shader,vertex_source, (const char*)pix_shader);
 	init_raymarch();
 	shaderconfig_map.clear();
-	glsl_to_config(raymarch_shader);
+	glsl_to_config(raymarch_shader, "raymarch.glsl");
 	free(pix_shader);
 	background = nk_rgb(28, 48, 62);
 
