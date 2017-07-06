@@ -15,6 +15,9 @@
 #include<vector>
 #include<cstring>
 #include<fstream>
+#include <string>
+#include <sstream>  
+using namespace std;
 #define MAX_VERTEX_BUFFER 512 * 1024
 #define MAX_ELEMENT_BUFFER 128 * 1024
 
@@ -171,6 +174,9 @@ struct glsl2configmap
 	int frag_number;
 	int program_num;
 	float val;
+	float min;
+	float max;
+	float inc;
 };
 std::vector<glsl2configmap>shaderconfig_map;
 
@@ -211,6 +217,15 @@ void glsl_to_config(shader_id prog)
 {
 	if (device)
 	{
+		vector<string>lines;
+		lines.clear();
+		ifstream openFile("raymarch.glsl");
+		string stringToStore; //string to store file line
+		while (getline(openFile, stringToStore)) { //checking for existence of file
+			lines.push_back(stringToStore);
+		}
+		openFile.close(); //closes file after done
+
 		//convert GLSL uniforms to variables
 		int total = -1;
 		glGetProgramiv(prog.fsid, GL_ACTIVE_UNIFORMS, &total);
@@ -222,11 +237,33 @@ void glsl_to_config(shader_id prog)
 				&name_len, &num, &type, name);
 			name[name_len] = 0;
 			if (type == GL_FLOAT) {
-			glsl2configmap subObj = {0};
-			strcpy(subObj.name, name);
-			subObj.frag_number = prog.fsid;
-			subObj.program_num = prog.pid;
-			shaderconfig_map.push_back(subObj);
+				for (int j= 0; j < lines.size(); j++)
+				{
+					string shit = "uniform float ";shit += name;
+					if (strstr(lines[j].c_str(),name))
+					{
+						std::size_t found = lines[j].rfind("//");
+						if (found != std::string::npos)
+						{
+							string shit2 = lines[j].substr(found + 2, lines[j].length());
+							stringstream parse1(shit2);
+							float min = 0., max = 0., inc = 0.;
+							parse1 >> min >> max >> inc;
+							glsl2configmap subObj = { 0 };
+							strcpy(subObj.name, name);
+							subObj.frag_number = prog.fsid;
+							subObj.program_num = prog.pid;
+							subObj.inc = inc;
+							subObj.min = min;
+							subObj.max = max;
+							shaderconfig_map.push_back(subObj);
+						}
+						
+					}
+
+				}
+		
+		
 			}
 		}
 	}
@@ -400,6 +437,7 @@ void PezUpdate(unsigned int elapsedMilliseconds) {
 	 return path;
  }
 unsigned long last_load=0;
+
  void recompile_shader(char* path)
  {
 
@@ -422,9 +460,12 @@ unsigned long last_load=0;
 			 char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
 			 if (pix_shader) {
 				 raymarch_shader = initShader(raymarch_shader, vertex_source, (const char*)pix_shader);
+
+				 glsl_to_config(raymarch_shader);
 				 dr_free_file_data(pix_shader);
+				
 			 }
-			 glsl_to_config(raymarch_shader);
+			
 		 }
 		 last_load = timeGetTime();
 	 }
@@ -493,7 +534,7 @@ void gui()
 					sprintf(label1, "%s: %.2f", shaderconfig_map[i].name, shaderconfig_map[i].val);
 					nk_label(ctx, label1, NK_TEXT_LEFT);
 					nk_layout_row_static(ctx, 30, 250, 2);
-					nk_slider_float(ctx, 0, &shaderconfig_map[i].val, 100, 0.1);
+					nk_slider_float(ctx, shaderconfig_map[i].min, &shaderconfig_map[i].val, shaderconfig_map[i].max, 0.1);
 				}
 			}
 		}
@@ -563,12 +604,10 @@ const char* PezInitialize(int width, int height)
 	char* pix_shader = dr_open_and_read_text_file("raymarch.glsl", &sizeout);
 	if (pix_shader == NULL)return NULL;
 	raymarch_shader = initShader(raymarch_shader,vertex_source, (const char*)pix_shader);
-	free(pix_shader);
 	init_raymarch();
-
 	shaderconfig_map.clear();
 	glsl_to_config(raymarch_shader);
-	
+	free(pix_shader);
 	background = nk_rgb(28, 48, 62);
 
     return "Shader Lathe v0.0";
