@@ -533,7 +533,7 @@ char *get_file(void) {
 	ofn.nFilterIndex = 1;
 	ofn.lpstrFile = filename;
 	ofn.nMaxFile = sizeof(filename);
-	ofn.lpstrTitle = "Select the input NRG file";
+	ofn.lpstrTitle = "Select the input audio file";
 	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_LONGNAMES | OFN_EXPLORER | OFN_HIDEREADONLY;
 
 	printf("- %s\n", ofn.lpstrTitle);
@@ -555,19 +555,24 @@ void gui()
 			nk_layout_row_static(ctx, 30, 80, 4);
 			if (nk_button_label(ctx, "Load"))
 			{
-				if (BASS_ChannelIsActive(music_stream) == BASS_ACTIVE_PLAYING)
-				{
-					BASS_StreamFree(music_stream);
-				}
+			
 				char *file = get_file();
 				if (file)
 				{
+					if (BASS_ChannelIsActive(music_stream) == BASS_ACTIVE_PLAYING)	BASS_StreamFree(music_stream);
 					if (music_stream = BASS_StreamCreateFile(FALSE, file, 0, 0, 0))
 					{
 						len = BASS_ChannelGetLength(music_stream, BASS_POS_BYTE); // the length in bytes
 						time = BASS_ChannelBytes2Seconds(music_stream, len);
 						BASS_ChannelPlay(music_stream, TRUE);
 						sceneTime = 0;
+					}
+				}
+				else
+				{
+					if (BASS_ChannelIsActive(music_stream) == BASS_ACTIVE_PLAYING)
+					{
+						BASS_StreamFree(music_stream);
 					}
 				}
 			}
