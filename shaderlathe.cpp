@@ -196,7 +196,6 @@ struct FBOELEM {
 	GLint status;
 };
 
-
 void update_rocket()
 {
 	if (device)
@@ -242,6 +241,7 @@ void glsl_to_config(shader_id prog, char *shader_path)
 					string shit = "uniform float ";shit += name;
 					if (strstr(lines[j].c_str(),name))
 					{
+						//Nuklear (user controllable)
 						std::size_t found = lines[j].rfind("//");
 						if (found != std::string::npos)
 						{
@@ -258,12 +258,22 @@ void glsl_to_config(shader_id prog, char *shader_path)
 							subObj.max = max;
 							shaderconfig_map.push_back(subObj);
 						}
-						
+						//GNU Rocket (user scriptable)
+						else if(lines[j].rfind("_rkt") != std::string::npos)
+						{
+							glsl2configmap subObj = { 0 };
+							strcpy(subObj.name, name);
+							subObj.frag_number = prog.fsid;
+							subObj.program_num = prog.pid;
+							float val = 0.0;
+							subObj.inc = val;
+							subObj.min = val;
+							subObj.max = val;
+							shaderconfig_map.push_back(subObj);
+						}
 					}
 
 				}
-		
-		
 			}
 		}
 	}
@@ -460,10 +470,8 @@ unsigned long last_load=0;
 			 char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
 			 if (pix_shader) {
 				 raymarch_shader = initShader(raymarch_shader, vertex_source, (const char*)pix_shader);
-
 				 glsl_to_config(raymarch_shader, "raymarch.glsl");
 				 dr_free_file_data(pix_shader);
-				
 			 }
 			
 		 }
@@ -483,6 +491,12 @@ const char *playstop[] = { "Pause","Resume"};
 int action = 0;
 bool seek = false;
 
+
+
+double pRound2(double number)
+{
+	return (number >= 0) ? (int)(number + 0.5) : (int)(number - 0.5);
+}
 
 double pround(double x, int precision)
 {
@@ -591,10 +605,7 @@ void PezRender()
 
 const char* PezInitialize(int width, int height)
 {
-	
 	rocket_init("rocket");
-
-
 	context = drfsw_create_context();
 	TCHAR path[512] = { 0 };
 	dr_get_executable_directory_path(path, sizeof(path));
