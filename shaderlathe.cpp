@@ -205,7 +205,9 @@ void update_rocket()
 		{
 			if (strstr(shaderconfig_map[i].name, "_rkt") != NULL)
 			{
-				const sync_track *track = sync_get_track(device, shaderconfig_map[i].name);
+				string shit = shaderconfig_map[i].name;
+				shit.substr(0, shit.size() - 4);
+				const sync_track *track = sync_get_track(device, shit.c_str());
 				shaderconfig_map[i].val = sync_get_val(track, row_f);
 			}
 		}
