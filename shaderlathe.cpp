@@ -24,15 +24,46 @@ using namespace std;
 #define MAX_VERTEX_BUFFER 512 * 1024
 #define MAX_ELEMENT_BUFFER 128 * 1024
 
+struct glsl2configmap
+{
+	char name[100];
+	int frag_number;
+	int program_num;
+	float val;
+	float min;
+	float max;
+	float inc;
+};
+std::vector<glsl2configmap>shaderconfig_map;
+
+struct shader_id
+{
+	int fsid;
+	int vsid;
+	unsigned int pid;
+	bool compiled;
+};
+
+struct FBOELEM {
+	GLuint fbo;
+	GLuint depthbuffer;
+	GLuint texture;
+	GLuint depthtexture;
+	GLint status;
+};
+
 static struct sync_device *device = NULL;
 #if !defined(SYNC_PLAYER)
 static struct sync_cb cb;
 #endif
 HSTREAM music_stream = NULL;
-const float rpb = 8.0f;
 float rps = 24.0f;// bpm / 60.0f * rpb; <- msvc cant compute this compile time... sigh
 int audio_is_playing = 1;
-int curtime_ms = 0;
+shader_id raymarch_shader = { 0 };
+static float sceneTime = 0;
+drfsw_context* context = NULL;
+
+GLuint scene_vao, scene_texture;
 
 static int row_to_ms_round(int row, float rps)
 {
@@ -67,7 +98,7 @@ static void xpause(void* data, int flag)
 static void xset_row(void* data, int row)
 {
 	int newtime_ms = row_to_ms_round(row, rps);
-	curtime_ms = newtime_ms;
+	sceneTime = newtime_ms;
 	(void)data;
 }
 
@@ -109,11 +140,8 @@ static int rocket_update()
 {
 	int row = 0;
 
-	if (audio_is_playing)
-		curtime_ms += 16; //...60hz or gtfo
-
 #if !defined( SYNC_PLAYER )
-	row = ms_to_row_round(curtime_ms, rps);
+	row = ms_to_row_round(sceneTime, rps);
 	if (sync_update(device, row, &cb, 0))
 		sync_connect(device, "localhost", SYNC_DEFAULT_PORT);
 #endif
@@ -168,39 +196,13 @@ usleep(16000);
 }
 }*/
 
-struct glsl2configmap
-{
-	char name[100];
-	int frag_number;
-	int program_num;
-	float val;
-	float min;
-	float max;
-	float inc;
-};
-std::vector<glsl2configmap>shaderconfig_map;
 
-struct shader_id
-{
-	int fsid;
-	int vsid;
-	unsigned int pid;
-	bool compiled;
-};
-
-struct FBOELEM {
-	GLuint fbo;
-	GLuint depthbuffer;
-	GLuint texture;
-	GLuint depthtexture;
-	GLint status;
-};
 
 void update_rocket()
 {
 	if (device)
 	{
-		float row_f = ms_to_row_f(curtime_ms, rps);
+		float row_f = ms_to_row_f(sceneTime, rps);
 		for (int i = 0; i < shaderconfig_map.size(); i++)
 		{
 			if (strstr(shaderconfig_map[i].name, "_rkt") != NULL)
@@ -312,13 +314,7 @@ fail:
 	}
 }
 
-shader_id raymarch_shader = { 0 };
-static float sceneTime = 0;
-static float scenetime_ms = 0;
-static bool isseeking = false;
-drfsw_context* context = NULL;
 
-GLuint scene_vao, scene_texture;
 
 #define GLSL(src) #src
 
@@ -433,14 +429,14 @@ void draw_raymarch(float time, shader_id program, int xres, int yres){
 void PezHandleMouse(int x, int y, int action) { }
 
 void PezUpdate(unsigned int elapsedMilliseconds) {
-	if (BASS_ChannelIsActive(music_stream) == BASS_ACTIVE_PLAYING)
+	if (BASS_ChannelIsActive(music_stream) != BASS_ACTIVE_STOPPED)
 	{
 		QWORD len = BASS_ChannelGetPosition(music_stream, BASS_POS_BYTE); // the length in bytes
 		sceneTime = BASS_ChannelBytes2Seconds(music_stream, len); 
 	}
 	else
 	{
-		scenetime_ms = elapsedMilliseconds * 0.001;
+		sceneTime += elapsedMilliseconds * 0.001;
 	}
 	
 
@@ -496,9 +492,6 @@ unsigned long last_load=0;
  }
 
 struct nk_color background;
-
-
-const char *playstop[] = { "Pause","Resume"};
 int action = 0;
 bool seek = false;
 
@@ -548,19 +541,19 @@ void gui()
 	static double time;
 	if (ctx)
 	{
-		if (nk_begin(ctx, "Shader Timeline", nk_rect(30, 520, 530, 160),
+		if (nk_begin(ctx, "Timeline", nk_rect(30, 520, 530, 160),
 			NK_WINDOW_BORDER | NK_WINDOW_MOVABLE |
 			NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
 		{
-			nk_layout_row_static(ctx, 30, 80, 4);
-			if (nk_button_label(ctx, "Load"))
+			nk_layout_row_static(ctx, 30, 100, 4);
+			if (nk_button_label(ctx, "Load/Unload"))
 			{
 			
 				char *file = get_file();
 				if (file)
 				{
-					if (BASS_ChannelIsActive(music_stream) == BASS_ACTIVE_PLAYING)	BASS_StreamFree(music_stream);
-					if (music_stream = BASS_StreamCreateFile(FALSE, file, 0, 0, 0))
+					if (BASS_ChannelIsActive(music_stream) != BASS_ACTIVE_STOPPED)	BASS_StreamFree(music_stream);
+					if (music_stream = BASS_StreamCreateFile(FALSE, file, 0, 0, BASS_STREAM_AUTOFREE))
 					{
 						len = BASS_ChannelGetLength(music_stream, BASS_POS_BYTE); // the length in bytes
 						time = BASS_ChannelBytes2Seconds(music_stream, len);
@@ -570,27 +563,36 @@ void gui()
 				}
 				else
 				{
-					if (BASS_ChannelIsActive(music_stream) == BASS_ACTIVE_PLAYING)
+					if (BASS_ChannelIsActive(music_stream) != BASS_ACTIVE_STOPPED)
 					{
 						BASS_StreamFree(music_stream);
 					}
 				}
 			}
 				
-			if (nk_button_label(ctx, playstop[0]))
+			if (nk_button_label(ctx, "Pause/Resume"))
 			{
+				if (BASS_ChannelIsActive(music_stream) == BASS_ACTIVE_PLAYING)
+				{
+					BASS_ChannelPause(music_stream);
+				}
+				else
+				{
+					BASS_ChannelPlay(music_stream,FALSE);
+				}
+				
 			}
 			if (nk_button_label(ctx, "Rewind"))
 			{
 				BASS_ChannelSetPosition(music_stream,0,BASS_POS_INEXACT);
 				sceneTime = 0;
 			}
-			if (BASS_ChannelIsActive(music_stream) == BASS_ACTIVE_PLAYING)
+			if (BASS_ChannelIsActive(music_stream) != BASS_ACTIVE_STOPPED)
 			{
-				int max = time;
+				float max = time;
 				nk_layout_row_dynamic(ctx, 25, 1);
 				char label1[100] = { 0 };
-				sprintf(label1, "Progress: %.2f seconds", sceneTime);
+				sprintf(label1, "Progress: %.2f / %.2f seconds", sceneTime,max);
 				nk_label(ctx, label1, NK_TEXT_LEFT);
 				nk_layout_row_static(ctx, 30, 500, 2);
 
@@ -667,10 +669,6 @@ void PezRender()
 	if (seek)
 	{
 		sceneTime = floor(sceneTime);
-	}
-	else
-	{
-		sceneTime += scenetime_ms;
 	}
 	
 
