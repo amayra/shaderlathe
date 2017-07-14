@@ -6,6 +6,8 @@
 #include "3rdparty/dr.h"
 #include "3rdparty/nuklear.h"
 #include "3rdparty/nuklear_pez_gl3.h"
+#include "3rdparty/bass.h"
+#pragma comment (lib,"bass.lib")
 #include <stdlib.h>
 #include <string.h>
 #include <mmsystem.h>
@@ -17,6 +19,7 @@
 #include<fstream>
 #include <string>
 #include <sstream>  
+
 using namespace std;
 #define MAX_VERTEX_BUFFER 512 * 1024
 #define MAX_ELEMENT_BUFFER 128 * 1024
@@ -25,10 +28,7 @@ static struct sync_device *device = NULL;
 #if !defined(SYNC_PLAYER)
 static struct sync_cb cb;
 #endif
-
-
-
-const float bpm = 180.0f;
+HSTREAM music_stream = NULL;
 const float rpb = 8.0f;
 float rps = 24.0f;// bpm / 60.0f * rpb; <- msvc cant compute this compile time... sigh
 int audio_is_playing = 1;
@@ -433,7 +433,16 @@ void draw_raymarch(float time, shader_id program, int xres, int yres){
 void PezHandleMouse(int x, int y, int action) { }
 
 void PezUpdate(unsigned int elapsedMilliseconds) {
-	scenetime_ms=elapsedMilliseconds * 0.001 ; 
+	if (BASS_ChannelIsActive(music_stream) == BASS_ACTIVE_PLAYING)
+	{
+		QWORD len = BASS_ChannelGetPosition(music_stream, BASS_POS_BYTE); // the length in bytes
+		sceneTime = BASS_ChannelBytes2Seconds(music_stream, len); 
+	}
+	else
+	{
+		scenetime_ms = elapsedMilliseconds * 0.001;
+	}
+	
 
 }
 
@@ -508,9 +517,35 @@ double pround(double x, int precision)
 	double div = pow(10, ex);
 	return floor(x / div + 0.5) * div;
 }
+#include <Commdlg.h>
+#include <windows.h>
+char *get_file(void) {
+	OPENFILENAME    ofn;
+	char     filename[4096] = { 0 };
+	static const char   filter[] =
+		"(*.*)\0"       "*.*\0"
+		"\0"            "\0";
+
+	filename[0] = 0;
+	memset(&ofn, 0, sizeof(ofn));
+	ofn.lStructSize = sizeof(ofn);
+	ofn.lpstrFilter = filter;
+	ofn.nFilterIndex = 1;
+	ofn.lpstrFile = filename;
+	ofn.nMaxFile = sizeof(filename);
+	ofn.lpstrTitle = "Select the input NRG file";
+	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_LONGNAMES | OFN_EXPLORER | OFN_HIDEREADONLY;
+
+	printf("- %s\n", ofn.lpstrTitle);
+	if (!GetOpenFileName(&ofn)) return NULL;
+	return(filename);
+}
+
 
 void gui()
 {
+	static QWORD len;
+	static double time;
 	if (ctx)
 	{
 		if (nk_begin(ctx, "Shader Timeline", nk_rect(30, 520, 530, 160),
@@ -519,22 +554,63 @@ void gui()
 		{
 			nk_layout_row_static(ctx, 30, 80, 4);
 			if (nk_button_label(ctx, "Load"))
-				fprintf(stdout, "button pressed\n");
+			{
+				if (BASS_ChannelIsActive(music_stream) == BASS_ACTIVE_PLAYING)
+				{
+					BASS_StreamFree(music_stream);
+				}
+				char *file = get_file();
+				if (file)
+				{
+					if (music_stream = BASS_StreamCreateFile(FALSE, file, 0, 0, 0))
+					{
+						len = BASS_ChannelGetLength(music_stream, BASS_POS_BYTE); // the length in bytes
+						time = BASS_ChannelBytes2Seconds(music_stream, len);
+						BASS_ChannelPlay(music_stream, TRUE);
+						sceneTime = 0;
+					}
+				}
+			}
+				
 			if (nk_button_label(ctx, playstop[0]))
 			{
 			}
 			if (nk_button_label(ctx, "Rewind"))
 			{
+				BASS_ChannelSetPosition(music_stream,0,BASS_POS_INEXACT);
 				sceneTime = 0;
 			}
-			int max = 300;
-			nk_layout_row_dynamic(ctx, 25, 1);
-			char label1[100] = { 0 };
-			sprintf(label1, "Progress: %.2f seconds", sceneTime);
-			nk_label(ctx, label1, NK_TEXT_LEFT);
-			nk_layout_row_static(ctx, 30, 500, 2);
+			if (BASS_ChannelIsActive(music_stream) == BASS_ACTIVE_PLAYING)
+			{
+				int max = time;
+				nk_layout_row_dynamic(ctx, 25, 1);
+				char label1[100] = { 0 };
+				sprintf(label1, "Progress: %.2f seconds", sceneTime);
+				nk_label(ctx, label1, NK_TEXT_LEFT);
+				nk_layout_row_static(ctx, 30, 500, 2);
+
+				seek = nk_slider_float(ctx, 0, (float*)&sceneTime, max, 0.1);
+				if (seek)
+				{
+					BASS_ChannelSetPosition(
+						music_stream,
+						BASS_ChannelSeconds2Bytes(music_stream, sceneTime),
+						BASS_POS_BYTE
+					);
+				}
+			}
+			else
+			{
+				int max = 300;
+				nk_layout_row_dynamic(ctx, 25, 1);
+				char label1[100] = { 0 };
+				sprintf(label1, "Progress: %.2f seconds", sceneTime);
+				nk_label(ctx, label1, NK_TEXT_LEFT);
+				nk_layout_row_static(ctx, 30, 500, 2);
+
+				seek = nk_slider_float(ctx, 0, (float*)&sceneTime, max, 0.1);
+			}
 			
-			seek = nk_slider_float(ctx, 0, (float*)&sceneTime, max, 0.1);
 		}
 	
 		nk_end(ctx);
@@ -607,6 +683,8 @@ void PezRender()
 
 const char* PezInitialize(int width, int height)
 {
+	BASS_Init(-1, 44100, 0, NULL, NULL);
+
 	rocket_init("rocket");
 	context = drfsw_create_context();
 	TCHAR path[512] = { 0 };
