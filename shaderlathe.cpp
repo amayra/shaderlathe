@@ -56,8 +56,9 @@ static struct sync_device *device = NULL;
 #if !defined(SYNC_PLAYER)
 static struct sync_cb cb;
 #endif
+int rocket_connected = 0;
 HSTREAM music_stream = NULL;
-float rps = 24.0f;// bpm / 60.0f * rpb; <- msvc cant compute this compile time... sigh
+float rps = 5.0f;// bpm / 60.0f * rpb; <- msvc cant compute this compile time... sigh
 int audio_is_playing = 1;
 shader_id raymarch_shader = { 0 };
 static float sceneTime = 0;
@@ -65,19 +66,19 @@ drfsw_context* context = NULL;
 
 GLuint scene_vao, scene_texture;
 
-static int row_to_ms_round(int row, float rps)
+int row_to_ms_round(int row, float rps)
 {
 	const float newtime = ((float)(row)) / rps;
-	return (int)(floor(newtime * 1000.0f + 0.5f));
+	return (int)(floor(newtime + 0.5f));
 }
 
-static float ms_to_row_f(int time_ms, float rps)
+float ms_to_row_f(float time_ms, float rps)
 {
-	const float row = rps * ((float)time_ms) * 1.0f / 1000.0f;
+	const float row = rps * time_ms;
 	return row;
 }
 
-static int ms_to_row_round(int time_ms, float rps)
+int ms_to_row_round(int time_ms, float rps)
 {
 	const float r = ms_to_row_f(time_ms, rps);
 	return (int)(floor(r + 0.5f));
@@ -90,15 +91,25 @@ static void xpause(void* data, int flag)
 	(void)data;
 
 	if (flag)
+	{
+		BASS_ChannelPause(music_stream);
 		audio_is_playing = 0;
+	}
+		
 	else
+	{
 		audio_is_playing = 1;
+		BASS_ChannelPlay(music_stream, false);
+	}
+	
 }
 
 static void xset_row(void* data, int row)
 {
 	int newtime_ms = row_to_ms_round(row, rps);
 	sceneTime = newtime_ms;
+	if (BASS_ChannelIsActive(music_stream) != BASS_ACTIVE_STOPPED)
+	BASS_ChannelSetPosition(music_stream,BASS_ChannelSeconds2Bytes(music_stream, sceneTime),BASS_POS_BYTE);
 	(void)data;
 }
 
@@ -132,19 +143,6 @@ int rocket_init(const char* prefix)
 #endif
 
 	printf("Rocket connected.\n");
-
-	return 1;
-}
-
-static int rocket_update()
-{
-	int row = 0;
-
-#if !defined( SYNC_PLAYER )
-	row = ms_to_row_round(sceneTime, rps);
-	if (sync_update(device, row, &cb, 0))
-		sync_connect(device, "localhost", SYNC_DEFAULT_PORT);
-#endif
 
 	return 1;
 }
@@ -200,15 +198,18 @@ usleep(16000);
 
 void update_rocket()
 {
-	if (device)
+	if (rocket_connected)
 	{
 		float row_f = ms_to_row_f(sceneTime, rps);
+		if(sync_update(device, (int)floor(row_f), &cb, 0))
+		sync_connect(device, "localhost", SYNC_DEFAULT_PORT);
+			
 		for (int i = 0; i < shaderconfig_map.size(); i++)
 		{
 			if (strstr(shaderconfig_map[i].name, "_rkt") != NULL)
 			{
 				string shit = shaderconfig_map[i].name;
-				shit.substr(0, shit.size() - 4);
+				shit = shit.substr(0, shit.size() - 4);
 				const sync_track *track = sync_get_track(device, shit.c_str());
 				shaderconfig_map[i].val = sync_get_val(track, row_f);
 			}
@@ -218,8 +219,7 @@ void update_rocket()
 
 void glsl_to_config(shader_id prog, char *shader_path)
 {
-	if (device)
-	{
+	
 		vector<string>lines;
 		lines.clear();
 		ifstream openFile(shader_path);
@@ -263,24 +263,23 @@ void glsl_to_config(shader_id prog, char *shader_path)
 							shaderconfig_map.push_back(subObj);
 						}
 						//GNU Rocket (user scriptable)
-						else if(lines[j].rfind("_rkt") != std::string::npos)
+						else if(lines[j].rfind("_rkt") != std::string::npos && rocket_connected)
 						{
-							glsl2configmap subObj = { 0 };
-							strcpy(subObj.name, name);
-							subObj.frag_number = prog.fsid;
-							subObj.program_num = prog.pid;
-							float val = 0.0;
-							subObj.inc = val;
-							subObj.min = val;
-							subObj.max = val;
-							shaderconfig_map.push_back(subObj);
+								glsl2configmap subObj = { 0 };
+								strcpy(subObj.name, name);
+								subObj.frag_number = prog.fsid;
+								subObj.program_num = prog.pid;
+								float val = 0.0;
+								subObj.inc = val;
+								subObj.min = val;
+								subObj.max = val;
+								shaderconfig_map.push_back(subObj);
 						}
 					}
 
 				}
 			}
 		}
-	}
 }
 
 shader_id initShader(shader_id shad,const char *vsh, const char *fsh)
@@ -431,8 +430,11 @@ void PezHandleMouse(int x, int y, int action) { }
 void PezUpdate(unsigned int elapsedMilliseconds) {
 	if (BASS_ChannelIsActive(music_stream) != BASS_ACTIVE_STOPPED)
 	{
-		QWORD len = BASS_ChannelGetPosition(music_stream, BASS_POS_BYTE); // the length in bytes
-		sceneTime = BASS_ChannelBytes2Seconds(music_stream, len); 
+		if (audio_is_playing)
+		{
+			QWORD len = BASS_ChannelGetPosition(music_stream, BASS_POS_BYTE); // the length in bytes
+			sceneTime = BASS_ChannelBytes2Seconds(music_stream, len);
+		}
 	}
 	else
 	{
@@ -688,7 +690,7 @@ const char* PezInitialize(int width, int height)
 {
 	BASS_Init(-1, 44100, 0, NULL, NULL);
 
-	rocket_init("rocket");
+	rocket_connected = rocket_init("rocket");
 	context = drfsw_create_context();
 	TCHAR path[512] = { 0 };
 	dr_get_executable_directory_path(path, sizeof(path));
