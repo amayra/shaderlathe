@@ -58,7 +58,7 @@ static struct sync_cb cb;
 #endif
 int rocket_connected = 0;
 HSTREAM music_stream = NULL;
-float rps = 5.0f;// bpm / 60.0f * rpb; <- msvc cant compute this compile time... sigh
+float rps = 5.0f;
 int audio_is_playing = 1;
 shader_id raymarch_shader = { 0 };
 static float sceneTime = 0;
@@ -146,53 +146,6 @@ int rocket_init(const char* prefix)
 
 	return 1;
 }
-
-
-/*
-static const char* s_trackNames[] =
-{
-"group0#track0",
-"group0#track1",
-"group0#track2",
-"group0#track3",
-"group1#track0",
-"group1#track1",
-"group1#track2",
-};
-
-static const struct sync_track* s_tracks[sizeof_array(s_trackNames)];
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-int main()
-{
-int i;
-
-if (!rocket_init("data/sync"))
-return -1;
-
-for (i = 0; i < sizeof_array(s_trackNames); ++i)
-s_tracks[i] = sync_get_track(device, s_trackNames[i]);
-
-for (;;)
-{
-float row_f;
-
-rocket_update();
-
-row_f = ms_to_row_f(curtime_ms, rps);
-
-printf("current time %d\n", curtime_ms);
-
-for (i = 0; i < sizeof_array(s_trackNames); ++i)
-printf("%s %f\n", s_trackNames[i], sync_get_val(s_tracks[i], row_f));
-#if defined(WIN32)
-Sleep(16);
-#else
-usleep(16000);
-#endif
-}
-}*/
 
 
 
