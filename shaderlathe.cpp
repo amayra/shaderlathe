@@ -391,10 +391,19 @@ void PezUpdate(unsigned int elapsedMilliseconds) {
 	}
 	else
 	{
+		if (rocket_connected)
+		{
+			if (audio_is_playing)
+			{
+				sceneTime += elapsedMilliseconds * 0.001;
+			}
+			else
+			{
+				return;
+			}
+		}
 		sceneTime += elapsedMilliseconds * 0.001;
 	}
-	
-
 }
 
  char* getFileNameFromPath(char* path)
