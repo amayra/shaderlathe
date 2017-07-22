@@ -154,20 +154,27 @@ void update_rocket()
 	if (rocket_connected)
 	{
 		float row_f = ms_to_row_f(sceneTime, rps);
-		if(sync_update(device, (int)floor(row_f), &cb, 0))
-		sync_connect(device, "localhost", SYNC_DEFAULT_PORT);
-			
-		for (int i = 0; i < shaderconfig_map.size(); i++)
+		if (sync_update(device, (int)floor(row_f), &cb, 0))
 		{
-			if (strstr(shaderconfig_map[i].name, "_rkt") != NULL)
+			rocket_connected = sync_connect(device, "localhost", SYNC_DEFAULT_PORT);
+		}
+
+		if (rocket_connected)
+		{
+			for (int i = 0; i < shaderconfig_map.size(); i++)
 			{
-				string shit = shaderconfig_map[i].name;
-				shit = shit.substr(0, shit.size() - 4);
-				const sync_track *track = sync_get_track(device, shit.c_str());
-				shaderconfig_map[i].val = sync_get_val(track, row_f);
+				if (strstr(shaderconfig_map[i].name, "_rkt") != NULL)
+				{
+					string shit = shaderconfig_map[i].name;
+					shit = shit.substr(0, shit.size() - 4);
+					const sync_track *track = sync_get_track(device, shit.c_str());
+					shaderconfig_map[i].val = sync_get_val(track, row_f);
+				}
 			}
 		}
+
 	}
+	
 }
 
 void glsl_to_config(shader_id prog, char *shader_path)
@@ -325,36 +332,10 @@ void init_raymarch()
 	// "unbind" voa
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-	int width = 32;
-	int height = 32;
-	GLubyte image[4 * 32 * 32] = { 0 };
-	for (int j = 0; j < height; ++j) {
-		for (int i = 0; i < width; ++i) {
-			size_t index = j*width + i;
-			image[4 * index + 0] = 0xFF * (j / 10 % 2)*(i / 10 % 2); // R
-			image[4 * index + 1] = 0xFF * (j / 13 % 2)*(i / 13 % 2); // G
-			image[4 * index + 2] = 0xFF * (j / 17 % 2)*(i / 17 % 2); // B
-			image[4 * index + 3] = 0xFF; // A
-		}
-	}
-
-	glGenTextures(1, &scene_texture);
-	glBindTexture(GL_TEXTURE_2D, scene_texture);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	// set texture content
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
-	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 void draw_raymarch(float time, shader_id program, int xres, int yres){
 	glBindProgramPipeline(program.pid);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, scene_texture);
-	glProgramUniform1i(program.fsid, 2, 0);
 	float fparams[4] = { xres, yres, time, 0.0 };
 	glProgramUniform4fv(program.fsid, 1, 1, fparams);
 	for (int i = 0; i < shaderconfig_map.size(); i++)
@@ -372,7 +353,6 @@ void draw_raymarch(float time, shader_id program, int xres, int yres){
 	glBindVertexArray(scene_vao);
 	// draw
 	glDrawArrays(GL_TRIANGLES, 0, 6);
-	glBindTexture(GL_TEXTURE_2D, 0);
 	glBindVertexArray(0);
 	glBindProgramPipeline(0);
 	glDisable(GL_BLEND);
