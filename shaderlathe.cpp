@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <mmsystem.h>
+#define GB_MATH_IMPLEMENTATION
 #include "3rdparty/gb_math.h"
 #include "3rdparty/rocket/sync.h"
 #include<iostream>
@@ -273,69 +274,23 @@ fail:
 	}
 }
 
-
-
 #define GLSL(src) #src
-
 const char vertex_source[] =
-"#version 330\n"
-"layout(location = 0) in vec4 vposition;\n"
-"layout(location = 1) in vec2 vtexcoord;\n"
-"out vec2 ftexcoord;\n"
-"void main() {\n"
-"   ftexcoord = vtexcoord;\n"
-"   gl_Position =vec4(vposition.xy, 0.0f, 1.0f);\n"
-"}\n";
-
-void init_raymarch()
-{
-
-	// get texture uniform location
-
-
-	// vao and vbo handle
-	GLuint vbo;
-
-	// generate and bind the vao
-	glGenVertexArrays(1, &scene_vao);
-	glBindVertexArray(scene_vao);
-
-	// generate and bind the vertex buffer object, to be used with VAO
-	glGenBuffers(1, &vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	// data for a fullscreen quad (this time with texture coords)
-	// we use the texture coords for whenever a LUT is loaded
-	typedef struct
-	{
-		float   x;
-		float   y;
-		float   z;
-		float   u;
-		float   v;
-	} VBufVertex;
-	VBufVertex vertexData[] = {
-		//  X     Y     Z           U     V     
-		1.0f, 1.0f, 0.0f, 1.0f, 1.0f, // vertex 0
-		-1.0f, 1.0f, 0.0f, 0.0f, 1.0f, // vertex 1
-		1.0f, -1.0f, 0.0f, 1.0f, 0.0f, // vertex 2
-		1.0f, -1.0f, 0.0f, 1.0f, 0.0f, // vertex 2
-		-1.0f, -1.0f, 0.0f, 0.0f, 0.0f, // vertex 3
-		-1.0f, 1.0f, 0.0f, 0.0f, 1.0f, // vertex 1
-	}; // 6 vertices with 5 components (floats) each
-	// fill with data
-	glBufferData(GL_ARRAY_BUFFER, sizeof(VBufVertex) * 6, vertexData, GL_STATIC_DRAW);
-	// set up generic attrib pointers
-	glEnableVertexAttribArray(0);
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VBufVertex), (void*)offsetof(VBufVertex, x));
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(VBufVertex), (void*)offsetof(VBufVertex, u));
-	// "unbind" voa
-	glBindVertexArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-}
+"#version 430\n"
+"out gl_PerVertex{vec4 gl_Position;};"
+"out vec2 ftexcoord;"
+"void main()"
+"{"
+"	float x = -1.0 + float((gl_VertexID & 1) << 2);"
+"	float y = -1.0 + float((gl_VertexID & 2) << 1);"
+"	ftexcoord.x = (x + 1.0)*0.5;"
+"	ftexcoord.y = (y + 1.0)*0.5;"
+"	gl_Position = vec4(x, y, 0, 1);"
+"}";
 
 void draw_raymarch(float time, shader_id program, int xres, int yres){
 	glBindProgramPipeline(program.pid);
+	glViewport(0, 0, xres, yres);
 	float fparams[4] = { xres, yres, time, 0.0 };
 	glProgramUniform4fv(program.fsid, 1, 1, fparams);
 	for (int i = 0; i < shaderconfig_map.size(); i++)
@@ -352,7 +307,7 @@ void draw_raymarch(float time, shader_id program, int xres, int yres){
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glBindVertexArray(scene_vao);
 	// draw
-	glDrawArrays(GL_TRIANGLES, 0, 6);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	glBindVertexArray(0);
 	glBindProgramPipeline(0);
 	glDisable(GL_BLEND);
@@ -478,7 +433,6 @@ char *get_file(void) {
 	return(filename);
 }
 
-
 void gui()
 {
 	static QWORD len;
@@ -582,12 +536,7 @@ void gui()
 			}
 		}
 	   nk_end(ctx);
-
-	
-		
 	}
-
-	
 }
 
 void PezRender()
@@ -608,7 +557,7 @@ void PezRender()
 	glClear(GL_COLOR_BUFFER_BIT);
 	glClearColor(bg[0], bg[1], bg[2], bg[3]);
 	
-	gui();
+
 
 	if (seek)
 	{
@@ -618,12 +567,15 @@ void PezRender()
 
 	update_rocket();
 
+	static int shift = 0;							// brightness shift amount
+	shift = ++shift % 200;
+
 	if (raymarch_shader.compiled)
 	{
 		draw_raymarch(sceneTime, raymarch_shader, 1280, 720);
-		
+
 	}
-	
+	gui();
 	nk_pez_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
 
 }
@@ -631,6 +583,8 @@ void PezRender()
 const char* PezInitialize(int width, int height)
 {
 	BASS_Init(-1, 44100, 0, NULL, NULL);
+	glGenVertexArrays(1, &scene_vao);
+	glBindVertexArray(scene_vao);
 
 	rocket_connected = rocket_init("rocket");
 	context = drfsw_create_context();
@@ -642,7 +596,6 @@ const char* PezInitialize(int width, int height)
 	char* pix_shader = dr_open_and_read_text_file("raymarch.glsl", &sizeout);
 	if (pix_shader == NULL)return NULL;
 	raymarch_shader = initShader(raymarch_shader,vertex_source, (const char*)pix_shader);
-	init_raymarch();
 	shaderconfig_map.clear();
 	glsl_to_config(raymarch_shader, "raymarch.glsl");
 	free(pix_shader);
