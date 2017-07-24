@@ -35,6 +35,7 @@ struct glsl2configmap
 	float min;
 	float max;
 	float inc;
+	bool ispost;
 };
 std::vector<glsl2configmap>shaderconfig_map;
 
@@ -181,7 +182,7 @@ void update_rocket()
 	
 }
 
-void glsl_to_config(shader_id prog, char *shader_path)
+void glsl_to_config(shader_id prog, char *shader_path,bool ispostproc)
 {
 		vector<string>lines;
 		lines.clear();
@@ -223,6 +224,7 @@ void glsl_to_config(shader_id prog, char *shader_path)
 							subObj.inc = inc;
 							subObj.min = min;
 							subObj.max = max;
+							subObj.ispost = ispostproc;
 							shaderconfig_map.push_back(subObj);
 						}
 						//GNU Rocket (user scriptable)
@@ -236,6 +238,7 @@ void glsl_to_config(shader_id prog, char *shader_path)
 								subObj.inc = val;
 								subObj.min = val;
 								subObj.max = val;
+								subObj.ispost = ispostproc;
 								shaderconfig_map.push_back(subObj);
 						}
 					}
@@ -340,7 +343,7 @@ void draw(float time, shader_id program, int xres, int yres, GLuint texture){
 }
 
 void PezHandleMouse(int x, int y, int action) { }
-
+bool paused = false;
 void PezUpdate(unsigned int elapsedMilliseconds) {
 	if (BASS_ChannelIsActive(music_stream) != BASS_ACTIVE_STOPPED)
 	{
@@ -354,12 +357,10 @@ void PezUpdate(unsigned int elapsedMilliseconds) {
 	{
 		if (rocket_connected)
 		{
-			if (audio_is_playing)
-			{
-				sceneTime += elapsedMilliseconds * 0.001;
-			}
-			else return;
+			if (audio_is_playing)sceneTime += elapsedMilliseconds * 0.001;
+			return;
 		}
+		if(!paused)
 		sceneTime += elapsedMilliseconds * 0.001;
 	}
 }
@@ -426,8 +427,8 @@ unsigned long last_load2=0;
 		 last_load2 = timeGetTime();
 	 }
 	shaderconfig_map.clear();
-	if(raymarch_shader.compiled)glsl_to_config(raymarch_shader, "raymarch.glsl");
-	if (post_shader.compiled) glsl_to_config(post_shader, "post.glsl");
+	if(raymarch_shader.compiled)glsl_to_config(raymarch_shader, "raymarch.glsl",false);
+	if (post_shader.compiled) glsl_to_config(post_shader, "post.glsl",true);
  }
 
 struct nk_color background;
@@ -498,9 +499,11 @@ void gui()
 				if (BASS_ChannelIsActive(music_stream) == BASS_ACTIVE_PLAYING)
 				{
 					BASS_ChannelPause(music_stream);
+					
 				}
 				else
 				{
+					paused = !paused;
 					BASS_ChannelPlay(music_stream,FALSE);
 				}
 				
@@ -550,7 +553,7 @@ void gui()
 			NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
 		{
 			for (int i = 0; i < shaderconfig_map.size(); i++) {
-				if (strstr(shaderconfig_map[i].name, "_rkt") == NULL) {
+				if (strstr(shaderconfig_map[i].name, "_rkt") == NULL  && !shaderconfig_map[i].ispost) {
 					nk_layout_row_dynamic(ctx, 25, 1);
 					char label1[100] = { 0 };
 					sprintf(label1, "%s: %.2f", shaderconfig_map[i].name, shaderconfig_map[i].val);
@@ -560,6 +563,24 @@ void gui()
 				}
 			}
 		}
+		nk_end(ctx);
+
+		if (nk_begin(ctx, "Post-Process Uniforms", nk_rect(1000, 200, 300, 200),
+			NK_WINDOW_BORDER | NK_WINDOW_MOVABLE |
+			NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
+		{
+			for (int i = 0; i < shaderconfig_map.size(); i++) {
+				if (strstr(shaderconfig_map[i].name, "_rkt") == NULL && shaderconfig_map[i].ispost) {
+					nk_layout_row_dynamic(ctx, 25, 1);
+					char label1[100] = { 0 };
+					sprintf(label1, "%s: %.2f", shaderconfig_map[i].name, shaderconfig_map[i].val);
+					nk_label(ctx, label1, NK_TEXT_LEFT);
+					nk_layout_row_static(ctx, 30, 250, 2);
+					nk_slider_float(ctx, shaderconfig_map[i].min, &shaderconfig_map[i].val, shaderconfig_map[i].max, 0.1);
+				}
+			}
+		}
+
 	   nk_end(ctx);
 	}
 }
