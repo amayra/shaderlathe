@@ -146,9 +146,7 @@ int rocket_init(const char* prefix)
 		return 0;
 	}
 #endif
-
 	printf("Rocket connected.\n");
-
 	return 1;
 }
 
@@ -159,11 +157,7 @@ void update_rocket()
 	if (rocket_connected)
 	{
 		float row_f = ms_to_row_f(sceneTime, rps);
-		if (sync_update(device, (int)floor(row_f), &cb, 0))
-		{
-			rocket_connected = sync_connect(device, "localhost", SYNC_DEFAULT_PORT);
-		}
-
+		if (sync_update(device, (int)floor(row_f), &cb, 0))rocket_connected = sync_connect(device, "localhost", SYNC_DEFAULT_PORT);
 		if (rocket_connected)
 		{
 			for (int i = 0; i < shaderconfig_map.size(); i++)
@@ -201,7 +195,7 @@ void glsl_to_config(shader_id prog, char *shader_path,bool ispostproc)
 			GLenum type = GL_ZERO;
 			char name[100] = { 0 };
 			glGetActiveUniform(prog.fsid, GLuint(i), sizeof(name) - 1,
-				&name_len, &num, &type, name);
+			&name_len, &num, &type, name);
 			name[name_len] = 0;
 			if (type == GL_FLOAT) {
 				for (int j= 0; j < lines.size(); j++)
@@ -304,8 +298,7 @@ GLuint init_rendertexture(int resx, int resy)
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, resx, resy, 0, GL_RGBA,
-		GL_UNSIGNED_BYTE, 0);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, resx, resy, 0, GL_RGBA,GL_UNSIGNED_BYTE, 0);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	return texture;
 }
@@ -360,8 +353,7 @@ void PezUpdate(unsigned int elapsedMilliseconds) {
 			if (audio_is_playing)sceneTime += elapsedMilliseconds * 0.001;
 			return;
 		}
-		if(!paused)
-		sceneTime += elapsedMilliseconds * 0.001;
+		if(!paused)sceneTime += elapsedMilliseconds * 0.001;
 	}
 }
 
@@ -487,10 +479,7 @@ void gui()
 				}
 				else
 				{
-					if (BASS_ChannelIsActive(music_stream) != BASS_ACTIVE_STOPPED)
-					{
-						BASS_StreamFree(music_stream);
-					}
+					if (BASS_ChannelIsActive(music_stream) != BASS_ACTIVE_STOPPED)BASS_StreamFree(music_stream);
 				}
 			}
 			char *label1 = paused ? "Resume" : "Pause";
@@ -606,10 +595,7 @@ void PezRender()
 	glClear(GL_COLOR_BUFFER_BIT);
 	glClearColor(bg[0], bg[1], bg[2], bg[3]);
 	
-	if (seek)
-	{
-		sceneTime = floor(sceneTime);
-	}
+	if (seek)sceneTime = floor(sceneTime);
 	
 	update_rocket();
 
