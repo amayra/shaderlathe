@@ -62,7 +62,7 @@ static struct sync_cb cb;
 int rocket_connected = 0;
 HSTREAM music_stream = NULL;
 float rps = 5.0f;
-int audio_is_playing = 0;
+int audio_is_playing = 1;
 shader_id raymarch_shader = { 0 };
 shader_id post_shader = { 0 };
 GLuint post_texture = 0;
@@ -493,13 +493,15 @@ void gui()
 					}
 				}
 			}
-				
-			if (nk_button_label(ctx, "Pause/Resume"))
+			char *label1 = NULL;
+			if (!paused)label1 = "Pause";
+			else label1 = "Resume";
+			if (nk_button_label(ctx, label1))
 			{
 				if (BASS_ChannelIsActive(music_stream) == BASS_ACTIVE_PLAYING)
 				{
 					BASS_ChannelPause(music_stream);
-					
+					paused = !paused;
 				}
 				else
 				{
@@ -548,7 +550,7 @@ void gui()
 	
 		nk_end(ctx);
 
-		if (nk_begin(ctx, "Raymarch Uniforms", nk_rect(1000, 30, 300, 200),
+		if (nk_begin(ctx, "Raymarch Uniforms", nk_rect(900, 30, 300, 200),
 			NK_WINDOW_BORDER | NK_WINDOW_MOVABLE |
 			NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
 		{
@@ -565,7 +567,7 @@ void gui()
 		}
 		nk_end(ctx);
 
-		if (nk_begin(ctx, "Post-Process Uniforms", nk_rect(1000, 200, 300, 200),
+		if (nk_begin(ctx, "Post-Process Uniforms", nk_rect(900, 400, 300, 200),
 			NK_WINDOW_BORDER | NK_WINDOW_MOVABLE |
 			NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
 		{
