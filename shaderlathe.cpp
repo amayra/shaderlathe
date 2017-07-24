@@ -613,9 +613,9 @@ void PezRender()
 	
 	update_rocket();
 
-	if (raymarch_shader.compiled)
+	if (raymarch_shader.compiled) draw(sceneTime, raymarch_shader,PEZ_VIEWPORT_WIDTH,PEZ_VIEWPORT_HEIGHT,NULL);
+	if (post_shader.compiled)
 	{
-		draw(sceneTime, raymarch_shader,PEZ_VIEWPORT_WIDTH,PEZ_VIEWPORT_HEIGHT,NULL);
 		glBindTexture(GL_TEXTURE_2D, post_texture);
 		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT);
 		glBindTexture(GL_TEXTURE_2D, 0);
