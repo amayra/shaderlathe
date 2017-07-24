@@ -61,7 +61,7 @@ static struct sync_cb cb;
 int rocket_connected = 0;
 HSTREAM music_stream = NULL;
 float rps = 5.0f;
-int audio_is_playing = 1;
+int audio_is_playing = 0;
 shader_id raymarch_shader = { 0 };
 shader_id post_shader = { 0 };
 GLuint post_texture = 0;
@@ -376,15 +376,14 @@ void PezUpdate(unsigned int elapsedMilliseconds) {
 	 return path;
  }
 unsigned long last_load=0;
+unsigned long last_load2=0;
 
  void recompile_shader(char* path)
  {
-
 	 if (strcmp(getFileNameFromPath(path), "raymarch.glsl") == 0)
 	 {
 		 unsigned long load = timeGetTime();
 		 if (load-last_load > 200) { //take into account actual shader recompile time
-			 shaderconfig_map.clear();
 			 Sleep(100);
 			 if (glIsProgramPipeline(raymarch_shader.pid)) {
 				 glDeleteProgram(raymarch_shader.fsid);
@@ -398,10 +397,8 @@ unsigned long last_load=0;
 			 char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
 			 if (pix_shader) {
 				 raymarch_shader = initShader(raymarch_shader, vertex_source, (const char*)pix_shader);
-				 glsl_to_config(raymarch_shader, "raymarch.glsl");
 				 dr_free_file_data(pix_shader);
 			 }
-			
 		 }
 		 last_load = timeGetTime();
 	 }
@@ -409,8 +406,7 @@ unsigned long last_load=0;
 	 if (strcmp(getFileNameFromPath(path), "post.glsl") == 0)
 	 {
 		 unsigned long load = timeGetTime();
-		 if (load - last_load > 200) { //take into account actual shader recompile time
-			 shaderconfig_map.clear();
+		 if (load - last_load2 > 200) { //take into account actual shader recompile time
 			 Sleep(100);
 			 if (glIsProgramPipeline(post_shader.pid)) {
 				 glDeleteProgram(post_shader.fsid);
@@ -424,34 +420,20 @@ unsigned long last_load=0;
 			 char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
 			 if (pix_shader) {
 				 post_shader = initShader(post_shader, vertex_source, (const char*)pix_shader);
-				 glsl_to_config(post_shader, "post.glsl");
 				 dr_free_file_data(pix_shader);
 			 }
-
 		 }
-		 last_load = timeGetTime();
+		 last_load2 = timeGetTime();
 	 }
+	shaderconfig_map.clear();
+	if(raymarch_shader.compiled)glsl_to_config(raymarch_shader, "raymarch.glsl");
+	if (post_shader.compiled) glsl_to_config(post_shader, "post.glsl");
  }
 
 struct nk_color background;
 int action = 0;
 bool seek = false;
 
-
-
-double pRound2(double number)
-{
-	return (number >= 0) ? (int)(number + 0.5) : (int)(number - 0.5);
-}
-
-double pround(double x, int precision)
-{
-	if (x == 0.)
-		return x;
-	int ex = floor(log10(abs(x))) - precision + 1;
-	double div = pow(10, ex);
-	return floor(x / div + 0.5) * div;
-}
 #include <Commdlg.h>
 #include <windows.h>
 char *get_file(void) {
@@ -635,12 +617,7 @@ const char* PezInitialize(int width, int height)
 	dr_get_executable_directory_path(path, sizeof(path));
 	dr_set_current_directory(path);
 	drfsw_add_directory(context, path);
-	size_t sizeout;
-	char* pix_shader = dr_open_and_read_text_file("raymarch.glsl", &sizeout);
-	if (pix_shader == NULL)return NULL;
-	raymarch_shader = initShader(raymarch_shader,vertex_source, (const char*)pix_shader);
-	glsl_to_config(raymarch_shader, "raymarch.glsl");
-	free(pix_shader);
+	recompile_shader("raymarch.glsl");
 
 
 	background = nk_rgb(28, 48, 62);
