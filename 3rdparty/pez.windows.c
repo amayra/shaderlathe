@@ -1,5 +1,4 @@
 // Pez was developed by Philip Rideout and released under the MIT License.
-
 #define _WIN32_WINNT 0x0500
 #define WINVER 0x0500
 #define WIN32_LEAN_AND_MEAN
@@ -39,10 +38,8 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
     int err;
     DWORD previousTime = GetTickCount();
     MSG msg = {0};
-
     wc.hCursor = LoadCursor(0, IDC_ARROW);
     RegisterClassExA(&wc);
-
     SetRect(&rect, 0, 0, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT);
     AdjustWindowRectEx(&rect, dwStyle, FALSE, dwExStyle);
     windowWidth = rect.right - rect.left;
@@ -50,7 +47,6 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
     windowLeft = GetSystemMetrics(SM_CXSCREEN) / 2 - windowWidth / 2;
     windowTop = GetSystemMetrics(SM_CYSCREEN) / 2 - windowHeight / 2;
     hWnd = CreateWindowExA(0, szName, szName, dwStyle, windowLeft, windowTop, windowWidth, windowHeight, 0, 0, 0, 0);
-
     // Create the GL context.
     ZeroMemory(&pfd, sizeof(pfd));
     pfd.nSize = sizeof(pfd);
@@ -61,14 +57,11 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
     pfd.cDepthBits = 24;
     pfd.cStencilBits = 8;
     pfd.iLayerType = PFD_MAIN_PLANE;
-
     hDC = GetDC(hWnd);
     pixelFormat = ChoosePixelFormat(hDC, &pfd);
-
     SetPixelFormat(hDC, pixelFormat, &pfd);
     hRC = wglCreateContext(hDC);
     wglMakeCurrent(hDC, hRC);
-
 	err = gl3w_init();
     if ( err == -1)
     {
@@ -100,7 +93,6 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
     const char* szWindowTitle = PezInitialize(PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT);
     if(!szWindowTitle)goto bomb;
     SetWindowTextA(hWnd, szWindowTitle);
-
 	ctx = nk_pez_init(hWnd, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT);
 	struct nk_font_atlas *atlas;
 	nk_pez_font_stash_begin(&atlas);
@@ -110,10 +102,7 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
     // -------------------
 	int done = 0;
 	int needs_refresh = 1;
-
 	int fps_cap = 60;
-
-
 	DWORD framecount = 0;
 	float rateticks = 1000 / fps_cap; //
 	DWORD baseticks = timeGetTime();
@@ -123,25 +112,22 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
     {
 		nk_input_begin(ctx);
 		while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
-			if (msg.message == WM_QUIT)
+		if (msg.message == WM_QUIT)
 			{
-				done = 1;
-				break;
+			done = 1;
+			break;
 			}
 			TranslateMessage(&msg);
 			DispatchMessageW(&msg);
 		}
 		nk_input_end(ctx);
 
-            DWORD currentTime = timeGetTime();
-            DWORD deltaTime = currentTime - previousTime;
-            previousTime = currentTime;
-			
-
-          
-            PezRender();
-			PezUpdate(deltaTime);
-
+		DWORD currentTime = timeGetTime();
+		DWORD deltaTime = currentTime - previousTime;
+		previousTime = currentTime;
+		  
+		PezRender();
+		PezUpdate(deltaTime);
 			// shitty framelimiter
 	/*		DWORD current_ticks = timeGetTime();
 			DWORD target_ticks = baseticks + (DWORD)((float)framecount * rateticks);
@@ -154,14 +140,11 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
 				framecount = 0;
 				baseticks = timeGetTime();
 			}*/
-
-            SwapBuffers(hDC);
+		SwapBuffers(hDC);
     }
     bomb:
     UnregisterClassA(szName, wc.hInstance);
 	ExitProcess(0);
-
-
     return 0;
 }
 
@@ -173,20 +156,16 @@ LRESULT WINAPI MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			PostQuitMessage(0);
 			break;
     }
-
 	if (nk_pez_handle_event(hWnd, msg, wParam, lParam))
 		return 0;
-
     return DefWindowProc(hWnd, msg, wParam, lParam);
 }
 
 void PezDebugStringW(const wchar_t* pStr, ...)
 {
     wchar_t msg[1024] = {0};
-
     va_list a;
     va_start(a, pStr);
-
     _vsnwprintf_s(msg, _countof(msg), _TRUNCATE, pStr, a);
     OutputDebugStringW(msg);
 }
@@ -194,10 +173,8 @@ void PezDebugStringW(const wchar_t* pStr, ...)
 void PezDebugString(const char* pStr, ...)
 {
     char msg[1024] = {0};
-
     va_list a;
     va_start(a, pStr);
-
     _vsnprintf_s(msg, _countof(msg), _TRUNCATE, pStr, a);
     OutputDebugStringA(msg);
 }
@@ -205,10 +182,8 @@ void PezDebugString(const char* pStr, ...)
 void PezFatalErrorW(const wchar_t* pStr, ...)
 {
     wchar_t msg[1024] = {0};
-
     va_list a;
     va_start(a, pStr);
-
     _vsnwprintf_s(msg, _countof(msg), _TRUNCATE, pStr, a);
     OutputDebugStringW(msg);
 #ifdef _DEBUG
@@ -220,10 +195,8 @@ void PezFatalErrorW(const wchar_t* pStr, ...)
 void PezFatalError(const char* pStr, ...)
 {
     char msg[1024] = {0};
-
     va_list a;
     va_start(a, pStr);
-
     _vsnprintf_s(msg, _countof(msg), _TRUNCATE, pStr, a);
     OutputDebugStringA(msg);
 #ifdef _DEBUG

@@ -20,11 +20,12 @@
 #include<fstream>
 #include <string>
 #include <sstream>  
+#include <Commdlg.h>
+#include <windows.h>
 
 using namespace std;
 #define MAX_VERTEX_BUFFER 512 * 1024
 #define MAX_ELEMENT_BUFFER 128 * 1024
-#define WINDOW_XRES 1280
 
 struct glsl2configmap
 {
@@ -68,8 +69,25 @@ shader_id post_shader = { 0 };
 GLuint post_texture = 0;
 static float sceneTime = 0;
 drfsw_context* context = NULL;
-
 GLuint scene_vao, scene_texture;
+bool paused = false;
+unsigned long last_shaderload = 0;
+unsigned long last_shaderload2 = 0;
+bool seek = false;
+
+#define GLSL(src) #src
+const char vertex_source[] =
+"#version 430\n"
+"out gl_PerVertex{vec4 gl_Position;};"
+"out vec2 ftexcoord;"
+"void main()"
+"{"
+"	float x = -1.0 + float((gl_VertexID & 1) << 2);"
+"	float y = -1.0 + float((gl_VertexID & 2) << 1);"
+"	ftexcoord.x = (x + 1.0)*0.5;"
+"	ftexcoord.y = (y + 1.0)*0.5;"
+"	gl_Position = vec4(x, y, 0, 1);"
+"}";
 
 int row_to_ms_round(int row, float rps)
 {
@@ -90,11 +108,9 @@ int ms_to_row_round(int time_ms, float rps)
 }
 
 #if !defined(SYNC_PLAYER)
-
 static void xpause(void* data, int flag)
 {
 	(void)data;
-
 	if (flag)
 	{
 		BASS_ChannelPause(music_stream);
@@ -106,7 +122,6 @@ static void xpause(void* data, int flag)
 		audio_is_playing = 1;
 		BASS_ChannelPlay(music_stream, false);
 	}
-	
 }
 
 static void xset_row(void* data, int row)
@@ -123,7 +138,6 @@ static int xis_playing(void* data)
 	(void)data;
 	return audio_is_playing;
 }
-
 #endif //!SYNC_PLAYER
 
 int rocket_init(const char* prefix)
@@ -134,7 +148,6 @@ int rocket_init(const char* prefix)
 		printf("Unable to create rocketDevice\n");
 		return 0;
 	}
-
 #if !defined( SYNC_PLAYER )
 	cb.is_playing = xis_playing;
 	cb.pause = xpause;
@@ -149,8 +162,6 @@ int rocket_init(const char* prefix)
 	printf("Rocket connected.\n");
 	return 1;
 }
-
-
 
 void update_rocket()
 {
@@ -173,7 +184,6 @@ void update_rocket()
 		}
 
 	}
-	
 }
 
 void glsl_to_config(shader_id prog, char *shader_path,bool ispostproc)
@@ -186,7 +196,6 @@ void glsl_to_config(shader_id prog, char *shader_path,bool ispostproc)
 			lines.push_back(stringToStore);
 		}
 		openFile.close(); //closes file after done
-
 		//convert GLSL uniforms to variables
 		int total = -1;
 		glGetProgramiv(prog.fsid, GL_ACTIVE_UNIFORMS, &total);
@@ -258,7 +267,6 @@ shader_id initShader(shader_id shad,const char *vsh, const char *fsh)
 	glGetProgramiv(shad.fsid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.fsid, 1024, NULL, (char *)info); if (!result){ goto fail; }
 	glGetProgramiv(shad.pid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.pid, 1024, NULL, (char *)info); if (!result){ goto fail; }
 #endif
-	
 	glBindProgramPipeline(0);
 	shad.compiled = true;
 	return shad;
@@ -272,20 +280,6 @@ fail:
 		return shad;
 	}
 }
-
-#define GLSL(src) #src
-const char vertex_source[] =
-"#version 430\n"
-"out gl_PerVertex{vec4 gl_Position;};"
-"out vec2 ftexcoord;"
-"void main()"
-"{"
-"	float x = -1.0 + float((gl_VertexID & 1) << 2);"
-"	float y = -1.0 + float((gl_VertexID & 2) << 1);"
-"	ftexcoord.x = (x + 1.0)*0.5;"
-"	ftexcoord.y = (y + 1.0)*0.5;"
-"	gl_Position = vec4(x, y, 0, 1);"
-"}";
 
 GLuint init_rendertexture(int resx, int resy)
 {
@@ -321,8 +315,7 @@ void draw(float time, shader_id program, int xres, int yres, GLuint texture){
 		{
 			int uniform_loc = glGetUniformLocation(program.fsid, shaderconfig_map[i].name);
 			glProgramUniform1f(program.fsid, uniform_loc, shaderconfig_map[i].val);
-		}
-			
+		}	
 	}
 	// bind the vao
 	glEnable(GL_BLEND);
@@ -336,7 +329,7 @@ void draw(float time, shader_id program, int xres, int yres, GLuint texture){
 }
 
 void PezHandleMouse(int x, int y, int action) { }
-bool paused = false;
+
 void PezUpdate(unsigned int elapsedMilliseconds) {
 	if (BASS_ChannelIsActive(music_stream) != BASS_ACTIVE_STOPPED)
 	{
@@ -368,15 +361,13 @@ void PezUpdate(unsigned int elapsedMilliseconds) {
 	 }
 	 return path;
  }
-unsigned long last_load=0;
-unsigned long last_load2=0;
 
  void recompile_shader(char* path)
  {
 	 if (strcmp(getFileNameFromPath(path), "raymarch.glsl") == 0)
 	 {
 		 unsigned long load = timeGetTime();
-		 if (load-last_load > 200) { //take into account actual shader recompile time
+		 if (load-last_shaderload > 200) { //take into account actual shader recompile time
 			 Sleep(100);
 			 if (glIsProgramPipeline(raymarch_shader.pid)) {
 				 glDeleteProgram(raymarch_shader.fsid);
@@ -393,13 +384,12 @@ unsigned long last_load2=0;
 				 dr_free_file_data(pix_shader);
 			 }
 		 }
-		 last_load = timeGetTime();
+		 last_shaderload = timeGetTime();
 	 }
-
 	 if (strcmp(getFileNameFromPath(path), "post.glsl") == 0)
 	 {
 		 unsigned long load = timeGetTime();
-		 if (load - last_load2 > 200) { //take into account actual shader recompile time
+		 if (load - last_shaderload2 > 200) { //take into account actual shader recompile time
 			 Sleep(100);
 			 if (glIsProgramPipeline(post_shader.pid)) {
 				 glDeleteProgram(post_shader.fsid);
@@ -416,19 +406,13 @@ unsigned long last_load2=0;
 				 dr_free_file_data(pix_shader);
 			 }
 		 }
-		 last_load2 = timeGetTime();
+		 last_shaderload2 = timeGetTime();
 	 }
 	shaderconfig_map.clear();
 	if(raymarch_shader.compiled)glsl_to_config(raymarch_shader, "raymarch.glsl",false);
 	if (post_shader.compiled) glsl_to_config(post_shader, "post.glsl",true);
  }
 
-struct nk_color background;
-int action = 0;
-bool seek = false;
-
-#include <Commdlg.h>
-#include <windows.h>
 char *get_file(void) {
 	OPENFILENAME    ofn;
 	char     filename[4096] = { 0 };
@@ -464,7 +448,6 @@ void gui()
 			nk_layout_row_static(ctx, 30, 100, 4);
 			if (nk_button_label(ctx, "Load/Unload"))
 			{
-			
 				char *file = get_file();
 				if (file)
 				{
@@ -495,7 +478,6 @@ void gui()
 					paused = !paused;
 					BASS_ChannelPlay(music_stream,FALSE);
 				}
-				
 			}
 			if (nk_button_label(ctx, "Rewind"))
 			{
@@ -529,14 +511,10 @@ void gui()
 				sprintf(label1, "Progress: %.2f seconds", sceneTime);
 				nk_label(ctx, label1, NK_TEXT_LEFT);
 				nk_layout_row_static(ctx, 30, 500, 2);
-
 				seek = nk_slider_float(ctx, 0, (float*)&sceneTime, max, 0.1);
 			}
-			
 		}
-	
 		nk_end(ctx);
-
 		if (nk_begin(ctx, "Raymarch Uniforms", nk_rect(900, 30, 300, 200),
 			NK_WINDOW_BORDER | NK_WINDOW_MOVABLE |
 			NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
@@ -553,7 +531,6 @@ void gui()
 			}
 		}
 		nk_end(ctx);
-
 		if (nk_begin(ctx, "Post-Process Uniforms", nk_rect(900, 400, 300, 200),
 			NK_WINDOW_BORDER | NK_WINDOW_MOVABLE |
 			NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
@@ -569,17 +546,12 @@ void gui()
 				}
 			}
 		}
-
 	   nk_end(ctx);
 	}
 }
 
-
-
-
 void PezRender()
 {
-	
 	drfsw_event e;
 	if (drfsw_peek_event(context, &e))
 	{
@@ -589,8 +561,8 @@ void PezRender()
 		default: break;
 		}
 	}
-
 	float bg[4];
+	struct nk_color background= nk_rgb(28, 48, 62);
 	nk_color_fv(bg, background);
 	glClear(GL_COLOR_BUFFER_BIT);
 	glClearColor(bg[0], bg[1], bg[2], bg[3]);
@@ -608,7 +580,6 @@ void PezRender()
 	}
 	gui();
 	nk_pez_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
-
 }
 
 const char* PezInitialize(int width, int height)
@@ -617,7 +588,6 @@ const char* PezInitialize(int width, int height)
 	BASS_Init(-1, 44100, 0, NULL, NULL);
 	glGenVertexArrays(1, &scene_vao);
 	post_texture = init_rendertexture(PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT);
-
 	rocket_connected = rocket_init("rocket");
 	context = drfsw_create_context();
 	TCHAR path[512] = { 0 };
@@ -625,9 +595,6 @@ const char* PezInitialize(int width, int height)
 	dr_set_current_directory(path);
 	drfsw_add_directory(context, path);
 	recompile_shader("raymarch.glsl");
-
-
-	background = nk_rgb(28, 48, 62);
 
     return "Shader Lathe v0.01";
 }
