@@ -493,9 +493,7 @@ void gui()
 					}
 				}
 			}
-			char *label1 = NULL;
-			if (!paused)label1 = "Pause";
-			else label1 = "Resume";
+			char *label1 = paused ? "Resume" : "Pause";
 			if (nk_button_label(ctx, label1))
 			{
 				if (BASS_ChannelIsActive(music_stream) == BASS_ACTIVE_PLAYING)
