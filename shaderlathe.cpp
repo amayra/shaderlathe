@@ -24,6 +24,7 @@
 using namespace std;
 #define MAX_VERTEX_BUFFER 512 * 1024
 #define MAX_ELEMENT_BUFFER 128 * 1024
+#define WINDOW_XRES 1280
 
 struct glsl2configmap
 {
@@ -62,6 +63,8 @@ HSTREAM music_stream = NULL;
 float rps = 5.0f;
 int audio_is_playing = 1;
 shader_id raymarch_shader = { 0 };
+shader_id post_shader = { 0 };
+GLuint post_texture = 0;
 static float sceneTime = 0;
 drfsw_context* context = NULL;
 
@@ -180,7 +183,6 @@ void update_rocket()
 
 void glsl_to_config(shader_id prog, char *shader_path)
 {
-	
 		vector<string>lines;
 		lines.clear();
 		ifstream openFile(shader_path);
@@ -288,9 +290,33 @@ const char vertex_source[] =
 "	gl_Position = vec4(x, y, 0, 1);"
 "}";
 
-void draw_raymarch(float time, shader_id program, int xres, int yres){
+GLuint init_rendertexture(int resx, int resy)
+{
+	GLuint texture;
+	//texture
+	glEnable(GL_TEXTURE_2D);
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, resx, resy, 0, GL_RGBA,
+		GL_UNSIGNED_BYTE, 0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	return texture;
+}
+
+void draw(float time, shader_id program, int xres, int yres, GLuint texture){
 	glBindProgramPipeline(program.pid);
 	glViewport(0, 0, xres, yres);
+	if (texture)
+	{
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, texture);
+		glProgramUniform1i(program.fsid, 2, 0);
+	}
+	
 	float fparams[4] = { xres, yres, time, 0.0 };
 	glProgramUniform4fv(program.fsid, 1, 1, fparams);
 	for (int i = 0; i < shaderconfig_map.size(); i++)
@@ -332,10 +358,7 @@ void PezUpdate(unsigned int elapsedMilliseconds) {
 			{
 				sceneTime += elapsedMilliseconds * 0.001;
 			}
-			else
-			{
-				return;
-			}
+			else return;
 		}
 		sceneTime += elapsedMilliseconds * 0.001;
 	}
@@ -359,7 +382,6 @@ unsigned long last_load=0;
 
 	 if (strcmp(getFileNameFromPath(path), "raymarch.glsl") == 0)
 	 {
-		
 		 unsigned long load = timeGetTime();
 		 if (load-last_load > 200) { //take into account actual shader recompile time
 			 shaderconfig_map.clear();
@@ -386,7 +408,28 @@ unsigned long last_load=0;
 
 	 if (strcmp(getFileNameFromPath(path), "post.glsl") == 0)
 	 {
+		 unsigned long load = timeGetTime();
+		 if (load - last_load > 200) { //take into account actual shader recompile time
+			 shaderconfig_map.clear();
+			 Sleep(100);
+			 if (glIsProgramPipeline(post_shader.pid)) {
+				 glDeleteProgram(post_shader.fsid);
+				 glDeleteProgram(post_shader.vsid);
+				 glBindProgramPipeline(0);
+				 glDeleteProgramPipelines(1, &post_shader.pid);
+			 }
+			 post_shader = { 0 };
+			 post_shader.compiled = false;
+			 size_t sizeout = 0;
+			 char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
+			 if (pix_shader) {
+				 post_shader = initShader(post_shader, vertex_source, (const char*)pix_shader);
+				 glsl_to_config(post_shader, "post.glsl");
+				 dr_free_file_data(pix_shader);
+			 }
 
+		 }
+		 last_load = timeGetTime();
 	 }
  }
 
@@ -539,6 +582,9 @@ void gui()
 	}
 }
 
+
+
+
 void PezRender()
 {
 	
@@ -557,23 +603,19 @@ void PezRender()
 	glClear(GL_COLOR_BUFFER_BIT);
 	glClearColor(bg[0], bg[1], bg[2], bg[3]);
 	
-
-
 	if (seek)
 	{
 		sceneTime = floor(sceneTime);
 	}
 	
-
 	update_rocket();
-
-	static int shift = 0;							// brightness shift amount
-	shift = ++shift % 200;
 
 	if (raymarch_shader.compiled)
 	{
-		draw_raymarch(sceneTime, raymarch_shader, 1280, 720);
-
+		draw(sceneTime, raymarch_shader,PEZ_VIEWPORT_WIDTH,PEZ_VIEWPORT_HEIGHT,NULL);
+		glBindTexture(GL_TEXTURE_2D, post_texture);
+		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT);
+		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 	gui();
 	nk_pez_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
@@ -582,9 +624,10 @@ void PezRender()
 
 const char* PezInitialize(int width, int height)
 {
+	shaderconfig_map.clear();
 	BASS_Init(-1, 44100, 0, NULL, NULL);
 	glGenVertexArrays(1, &scene_vao);
-	glBindVertexArray(scene_vao);
+	post_texture = init_rendertexture(PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT);
 
 	rocket_connected = rocket_init("rocket");
 	context = drfsw_create_context();
@@ -596,10 +639,11 @@ const char* PezInitialize(int width, int height)
 	char* pix_shader = dr_open_and_read_text_file("raymarch.glsl", &sizeout);
 	if (pix_shader == NULL)return NULL;
 	raymarch_shader = initShader(raymarch_shader,vertex_source, (const char*)pix_shader);
-	shaderconfig_map.clear();
 	glsl_to_config(raymarch_shader, "raymarch.glsl");
 	free(pix_shader);
+
+
 	background = nk_rgb(28, 48, 62);
 
-    return "Shader Lathe v0.0";
+    return "Shader Lathe v0.01";
 }
