@@ -245,7 +245,6 @@ void glsl_to_config(shader_id prog, char *shader_path,bool ispostproc)
 								shaderconfig_map.push_back(subObj);
 						}
 					}
-
 				}
 			}
 		}
@@ -573,8 +572,6 @@ void PezRender()
 		glBindTexture(GL_TEXTURE_2D, post_texture);
 		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT);
 		glBindTexture(GL_TEXTURE_2D, 0);
-		glClear(GL_COLOR_BUFFER_BIT);
-		glClearColor(0, 0, 0, 0.0);
 		draw(sceneTime, post_shader, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT, post_texture);
 	}
 	gui();
