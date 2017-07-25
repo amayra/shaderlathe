@@ -71,8 +71,6 @@ static float sceneTime = 0;
 drfsw_context* context = NULL;
 GLuint scene_vao, scene_texture;
 bool paused = false;
-unsigned long last_shaderload = 0;
-unsigned long last_shaderload2 = 0;
 bool seek = false;
 
 #define GLSL(src) #src
@@ -218,8 +216,11 @@ void glsl_to_config(shader_id prog, char *shader_path,bool ispostproc)
 						{
 							string shit2 = lines[j].substr(found + 2, lines[j].length());
 							stringstream parse1(shit2);
-							float min = 0., max = 0., inc = 0.;
-							parse1 >> min >> max >> inc;
+							parse1.precision(6);
+							double min = 0., max = 0., inc = 0.00;
+							parse1 >> fixed >> min;
+							parse1 >> fixed >> max;
+							parse1 >> fixed >> inc;
 							glsl2configmap subObj = { 0 };
 							strcpy(subObj.name, name);
 							subObj.frag_number = prog.fsid;
@@ -239,8 +240,7 @@ void glsl_to_config(shader_id prog, char *shader_path,bool ispostproc)
 								subObj.program_num = prog.pid;
 								float val = 0.0;
 								subObj.inc = val;
-								subObj.min = val;
-								subObj.max = val;
+								subObj.min = subObj.max = subObj.inc;
 								subObj.ispost = ispostproc;
 								shaderconfig_map.push_back(subObj);
 						}
@@ -306,7 +306,6 @@ void draw(float time, shader_id program, int xres, int yres, GLuint texture){
 		glBindTexture(GL_TEXTURE_2D, texture);
 		glProgramUniform1i(program.fsid, 2, 0);
 	}
-	
 	float fparams[4] = { xres, yres, time, 0.0 };
 	glProgramUniform4fv(program.fsid, 1, 1, fparams);
 	for (int i = 0; i < shaderconfig_map.size(); i++)
@@ -366,7 +365,8 @@ void PezUpdate(unsigned int elapsedMilliseconds) {
  {
 	 if (strcmp(getFileNameFromPath(path), "raymarch.glsl") == 0)
 	 {
-		 unsigned long load = timeGetTime();
+		static unsigned long last_shaderload = 0;
+		unsigned long load = timeGetTime();
 		 if (load-last_shaderload > 200) { //take into account actual shader recompile time
 			 Sleep(100);
 			 if (glIsProgramPipeline(raymarch_shader.pid)) {
@@ -388,8 +388,9 @@ void PezUpdate(unsigned int elapsedMilliseconds) {
 	 }
 	 if (strcmp(getFileNameFromPath(path), "post.glsl") == 0)
 	 {
+		 static unsigned long last_shaderload = 0;
 		 unsigned long load = timeGetTime();
-		 if (load - last_shaderload2 > 200) { //take into account actual shader recompile time
+		 if (load - last_shaderload > 200) { //take into account actual shader recompile time
 			 Sleep(100);
 			 if (glIsProgramPipeline(post_shader.pid)) {
 				 glDeleteProgram(post_shader.fsid);
@@ -406,7 +407,7 @@ void PezUpdate(unsigned int elapsedMilliseconds) {
 				 dr_free_file_data(pix_shader);
 			 }
 		 }
-		 last_shaderload2 = timeGetTime();
+		 last_shaderload = timeGetTime();
 	 }
 	shaderconfig_map.clear();
 	if(raymarch_shader.compiled)glsl_to_config(raymarch_shader, "raymarch.glsl",false);
@@ -419,7 +420,6 @@ char *get_file(void) {
 	static const char   filter[] =
 		"(*.*)\0"       "*.*\0"
 		"\0"            "\0";
-
 	filename[0] = 0;
 	memset(&ofn, 0, sizeof(ofn));
 	ofn.lStructSize = sizeof(ofn);
@@ -437,8 +437,7 @@ char *get_file(void) {
 
 void gui()
 {
-	static QWORD len;
-	static double time;
+	static double time=0;
 	if (ctx)
 	{
 		if (nk_begin(ctx, "Timeline", nk_rect(30, 520, 530, 160),
@@ -452,9 +451,9 @@ void gui()
 				if (file)
 				{
 					if (BASS_ChannelIsActive(music_stream) != BASS_ACTIVE_STOPPED)	BASS_StreamFree(music_stream);
-					if (music_stream = BASS_StreamCreateFile(FALSE, file, 0, 0, BASS_STREAM_AUTOFREE))
+					if (music_stream = BASS_StreamCreateFile(FALSE, file, 0, 0,0))
 					{
-						len = BASS_ChannelGetLength(music_stream, BASS_POS_BYTE); // the length in bytes
+						QWORD len = BASS_ChannelGetLength(music_stream, BASS_POS_BYTE); // the length in bytes
 						time = BASS_ChannelBytes2Seconds(music_stream, len);
 						BASS_ChannelPlay(music_stream, TRUE);
 						sceneTime = 0;
@@ -526,7 +525,7 @@ void gui()
 					sprintf(label1, "%s: %.2f", shaderconfig_map[i].name, shaderconfig_map[i].val);
 					nk_label(ctx, label1, NK_TEXT_LEFT);
 					nk_layout_row_static(ctx, 30, 250, 2);
-					nk_slider_float(ctx, shaderconfig_map[i].min, &shaderconfig_map[i].val, shaderconfig_map[i].max, 0.1);
+					nk_slider_float(ctx, shaderconfig_map[i].min, &shaderconfig_map[i].val, shaderconfig_map[i].max, shaderconfig_map[i].inc);
 				}
 			}
 		}
@@ -542,7 +541,7 @@ void gui()
 					sprintf(label1, "%s: %.2f", shaderconfig_map[i].name, shaderconfig_map[i].val);
 					nk_label(ctx, label1, NK_TEXT_LEFT);
 					nk_layout_row_static(ctx, 30, 250, 2);
-					nk_slider_float(ctx, shaderconfig_map[i].min, &shaderconfig_map[i].val, shaderconfig_map[i].max, 0.1);
+					nk_slider_float(ctx, shaderconfig_map[i].min, &shaderconfig_map[i].val, shaderconfig_map[i].max, shaderconfig_map[i].inc);
 				}
 			}
 		}
@@ -561,11 +560,8 @@ void PezRender()
 		default: break;
 		}
 	}
-	float bg[4];
-	struct nk_color background= nk_rgb(28, 48, 62);
-	nk_color_fv(bg, background);
 	glClear(GL_COLOR_BUFFER_BIT);
-	glClearColor(bg[0], bg[1], bg[2], bg[3]);
+	glClearColor(0, 0, 0, 0.0);
 	
 	if (seek)sceneTime = floor(sceneTime);
 	
@@ -577,6 +573,9 @@ void PezRender()
 		glBindTexture(GL_TEXTURE_2D, post_texture);
 		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT);
 		glBindTexture(GL_TEXTURE_2D, 0);
+		glClear(GL_COLOR_BUFFER_BIT);
+		glClearColor(0, 0, 0, 0.0);
+		draw(sceneTime, post_shader, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT, post_texture);
 	}
 	gui();
 	nk_pez_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
@@ -595,6 +594,6 @@ const char* PezInitialize(int width, int height)
 	dr_set_current_directory(path);
 	drfsw_add_directory(context, path);
 	recompile_shader("raymarch.glsl");
-
-    return "Shader Lathe v0.01";
+	recompile_shader("post.glsl");
+    return "Shader Lathe v0.1";
 }
