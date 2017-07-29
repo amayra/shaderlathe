@@ -55,6 +55,9 @@ struct FBOELEM {
 	GLuint depthtexture;
 	GLint status;
 };
+FBOELEM render_fbo;
+#define render_width 1920
+#define render_height 1080
 
 static struct sync_device *device = NULL;
 #if !defined(SYNC_PLAYER)
@@ -87,6 +90,18 @@ const char vertex_source[] =
 "	gl_Position = vec4(x, y, 0, 1);"
 "}";
 
+const char vertex_source_fbo[] =
+"#version 430\n"
+"out gl_PerVertex{vec4 gl_Position;};"
+"out vec2 ftexcoord;"
+"void main()"
+"{"
+"	float x = -1.0 + float((gl_VertexID & 1) << 2);"
+"	float y = -1.0 + float((gl_VertexID & 2) << 1);"
+"	ftexcoord.x = (x + 1.0)*0.5;"
+"	ftexcoord.y = (y + 1.0)*0.5;"
+"	gl_Position = vec4(x, -y, 0, 1);"
+"}";
 int row_to_ms_round(int row, float rps)
 {
 	const float newtime = ((float)(row)) / rps;
@@ -296,6 +311,42 @@ GLuint init_rendertexture(int resx, int resy)
 	return texture;
 }
 
+FBOELEM init_fbo(int width, int height, bool fp)
+{
+	FBOELEM elem = { 0 };
+	int current, enderr = 1;
+	GLuint error = 0;
+	glGenFramebuffers(1, &elem.fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, elem.fbo);
+	glGenRenderbuffers(1, &elem.depthbuffer);
+	glBindRenderbuffer(GL_RENDERBUFFER, elem.depthbuffer);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, elem.depthbuffer);
+	glGenTextures(1, &elem.texture);
+	glBindTexture(GL_TEXTURE_2D, elem.texture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexImage2D(GL_TEXTURE_2D, 0, fp ? GL_RGB32F : GL_RGBA8, width, height, 0, GL_RGBA, fp ? GL_FLOAT : GL_UNSIGNED_BYTE, NULL);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, elem.texture, 0);
+
+	// check if everything was ok with our requests above.
+	error = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (error != GL_FRAMEBUFFER_COMPLETE) {
+		FBOELEM err = { 0 };
+		elem.status = 0;
+		enderr = 0;
+		return err;
+	}
+	elem.status = 1;
+	// set Rendering Device to screen again.
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+	return elem;
+}
+
 void draw(float time, shader_id program, int xres, int yres, GLuint texture){
 	glBindProgramPipeline(program.pid);
 	glViewport(0, 0, xres, yres);
@@ -428,7 +479,6 @@ char *get_file(void) {
 	ofn.nMaxFile = sizeof(filename);
 	ofn.lpstrTitle = "Select the input audio file";
 	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_LONGNAMES | OFN_EXPLORER | OFN_HIDEREADONLY;
-
 	printf("- %s\n", ofn.lpstrTitle);
 	if (!GetOpenFileName(&ofn)) return NULL;
 	return(filename);
@@ -529,22 +579,28 @@ void gui()
 			}
 		}
 		nk_end(ctx);
-		if (nk_begin(ctx, "Post-Process Uniforms", nk_rect(900, 400, 300, 200),
-			NK_WINDOW_BORDER | NK_WINDOW_MOVABLE |
-			NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
+
+		if (post_shader.compiled)
 		{
-			for (int i = 0; i < shaderconfig_map.size(); i++) {
-				if (strstr(shaderconfig_map[i].name, "_rkt") == NULL && shaderconfig_map[i].ispost) {
-					nk_layout_row_dynamic(ctx, 25, 1);
-					char label1[100] = { 0 };
-					sprintf(label1, "%s: %.2f", shaderconfig_map[i].name, shaderconfig_map[i].val);
-					nk_label(ctx, label1, NK_TEXT_LEFT);
-					nk_layout_row_static(ctx, 30, 250, 2);
-					nk_slider_float(ctx, shaderconfig_map[i].min, &shaderconfig_map[i].val, shaderconfig_map[i].max, shaderconfig_map[i].inc);
+			if (nk_begin(ctx, "Post-Process Uniforms", nk_rect(900, 400, 300, 200),
+				NK_WINDOW_BORDER | NK_WINDOW_MOVABLE |
+				NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
+			{
+				for (int i = 0; i < shaderconfig_map.size(); i++) {
+					if (strstr(shaderconfig_map[i].name, "_rkt") == NULL && shaderconfig_map[i].ispost) {
+						nk_layout_row_dynamic(ctx, 25, 1);
+						char label1[100] = { 0 };
+						sprintf(label1, "%s: %.2f", shaderconfig_map[i].name, shaderconfig_map[i].val);
+						nk_label(ctx, label1, NK_TEXT_LEFT);
+						nk_layout_row_static(ctx, 30, 250, 2);
+						nk_slider_float(ctx, shaderconfig_map[i].min, &shaderconfig_map[i].val, shaderconfig_map[i].max, shaderconfig_map[i].inc);
+					}
 				}
 			}
+			nk_end(ctx);
 		}
-	   nk_end(ctx);
+	
+	  
 	}
 }
 
@@ -566,13 +622,28 @@ void PezRender()
 	
 	update_rocket();
 
-	if (raymarch_shader.compiled) draw(sceneTime, raymarch_shader,PEZ_VIEWPORT_WIDTH,PEZ_VIEWPORT_HEIGHT,NULL);
 	if (post_shader.compiled)
 	{
-		glBindTexture(GL_TEXTURE_2D, post_texture);
-		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT);
-		glBindTexture(GL_TEXTURE_2D, 0);
-		draw(sceneTime, post_shader, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT, post_texture);
+	glBindFramebuffer(GL_FRAMEBUFFER, render_fbo.fbo);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glClearColor(0.0, 0.0, 0.0, 1.0f);
+	glViewport(0, 0, render_width, render_height);
+	if (raymarch_shader.compiled) draw(sceneTime, raymarch_shader,render_width,render_height,NULL);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, render_fbo.fbo);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glBlitFramebuffer(0, 0,render_width, render_height, 0, 0, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT, GL_DEPTH_BUFFER_BIT|GL_COLOR_BUFFER_BIT, GL_NEAREST);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glBindTexture(GL_TEXTURE_2D, post_texture);
+	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	draw(sceneTime, post_shader, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT, post_texture);
+	}
+	else
+	{
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glClearColor(0.0, 0.0, 0.0, 1.0f);
+		if (raymarch_shader.compiled) draw(sceneTime, raymarch_shader, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT, NULL);
 	}
 	gui();
 	nk_pez_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
@@ -592,5 +663,6 @@ const char* PezInitialize(int width, int height)
 	drfsw_add_directory(context, path);
 	recompile_shader("raymarch.glsl");
 	recompile_shader("post.glsl");
+	render_fbo = init_fbo(render_width, render_height, false);
     return "Shader Lathe v0.1";
 }
