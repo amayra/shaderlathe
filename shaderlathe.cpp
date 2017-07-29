@@ -646,7 +646,6 @@ const char* PezInitialize(int width, int height)
 	shaderconfig_map.clear();
 	BASS_Init(-1, 44100, 0, NULL, NULL);
 	glGenVertexArrays(1, &scene_vao);
-	post_texture = init_rendertexture(PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT);
 	rocket_connected = rocket_init("rocket");
 	context = drfsw_create_context();
 	TCHAR path[512] = { 0 };
