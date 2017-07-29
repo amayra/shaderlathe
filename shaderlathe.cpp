@@ -627,17 +627,9 @@ void PezRender()
 	glBindFramebuffer(GL_FRAMEBUFFER, render_fbo.fbo);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glClearColor(0.0, 0.0, 0.0, 1.0f);
-	glViewport(0, 0, render_width, render_height);
 	if (raymarch_shader.compiled) draw(sceneTime, raymarch_shader,render_width,render_height,NULL);
-	glBindFramebuffer(GL_READ_FRAMEBUFFER, render_fbo.fbo);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-	glBlitFramebuffer(0, 0,render_width, render_height, 0, 0, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT, GL_DEPTH_BUFFER_BIT|GL_COLOR_BUFFER_BIT, GL_NEAREST);
-	glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-	glBindTexture(GL_TEXTURE_2D, post_texture);
-	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	draw(sceneTime, post_shader, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT, post_texture);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	draw(sceneTime, post_shader, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT, render_fbo.texture);
 	}
 	else
 	{
