@@ -19,8 +19,8 @@ struct nk_context *ctx;
 
 // Here's the Pez configuration section.  Modify these constants to your liking!
 //
-#define PEZ_VIEWPORT_WIDTH 1280
-#define PEZ_VIEWPORT_HEIGHT 720
+#define PEZ_VIEWPORT_WIDTH 1600	
+#define PEZ_VIEWPORT_HEIGHT 900
 #define PEZ_ENABLE_MULTISAMPLING 0
 #define PEZ_VERTICAL_SYNC 1
 

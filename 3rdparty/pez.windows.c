@@ -27,7 +27,7 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
     LPCSTR szName = "Shader Lathe";
     WNDCLASSEXA wc = { sizeof(WNDCLASSEX), CS_DBLCLKS, MsgProc, 0L, 0L, GetModuleHandle(0), 0, 0, 0, 0, szName, 0 };
 	DWORD dwExStyle = WS_EX_APPWINDOW;// | WS_EX_WINDOWEDGE;
-	DWORD dwStyle = WS_VISIBLE | WS_CAPTION | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_SYSMENU;
+	DWORD dwStyle = WS_VISIBLE | WS_CAPTION | WS_MINIMIZEBOX| WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_SYSMENU;
     RECT rect;
     int windowWidth, windowHeight, windowLeft, windowTop;
     HWND hWnd;

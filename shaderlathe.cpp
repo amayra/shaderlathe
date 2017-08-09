@@ -201,27 +201,6 @@ void update_rocket()
 	}
 }
 
-static const WORD MAX_CONSOLE_LINES = 1000;
-
-void RedirectIOToConsole()
-{
-	long lStdHandle;
-	FILE *fp;
-	int hConHandle;
-	CONSOLE_SCREEN_BUFFER_INFO coninfo;
-	// set the screen buffer to be big enough to let us scroll text
-	GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &coninfo);
-	coninfo.dwSize.Y = MAX_CONSOLE_LINES;
-	SetConsoleScreenBufferSize(GetStdHandle(STD_OUTPUT_HANDLE),
-		coninfo.dwSize);
-	// redirect unbuffered STDOUT to the console
-	lStdHandle = (long)GetStdHandle(STD_OUTPUT_HANDLE);
-	hConHandle = _open_osfhandle(lStdHandle, _O_TEXT);
-	fp = _fdopen(hConHandle, "w");
-	*stdout = *fp;
-	setvbuf(stdout, NULL, _IONBF, 0);
-}
-
 void glsl_to_config(shader_id prog, char *shader_path,bool ispostproc)
 {
 		vector<string>lines;
@@ -462,11 +441,8 @@ void PezUpdate(unsigned int elapsedMilliseconds) {
 				 raymarch_shader = initShader(raymarch_shader, vertex_source, (const char*)pix_shader);
 				 dr_free_file_data(pix_shader);
 			 }
-			 if (raymarch_shader.compiled)
-			 {
-				 fprintf(stdout, "Compiled raymarch shader\n");
-			 }
-			 else fprintf(stdout, "Failed to compile raymarch shader\n");
+			 char *label1 =raymarch_shader.compiled ? "Compiled raymarch shader\n" : "Failed to compile raymarch shader\n";
+			 fprintf(stdout, label1);
 		 }
 		 last_shaderload = timeGetTime();
 	 }
@@ -491,12 +467,8 @@ void PezUpdate(unsigned int elapsedMilliseconds) {
 				 post_shader = initShader(post_shader, vertex_source, (const char*)pix_shader);
 				 dr_free_file_data(pix_shader);
 			 }
-			 if (post_shader.compiled)
-			 {
-				 fprintf(stdout, "Compiled post-process shader\n");
-			 }
-			 else
-				 fprintf(stdout, "Failed to compile post-process shader\n");
+			 char *label1 = post_shader.compiled ? "Compiled post-process shader\n" : "Failed to compile post-process shader\n";
+			 fprintf(stdout, label1);
 		 }
 		 last_shaderload = timeGetTime();
 	 }
@@ -520,7 +492,6 @@ char *get_file(void) {
 	ofn.nMaxFile = sizeof(filename);
 	ofn.lpstrTitle = "Select the input audio file";
 	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_LONGNAMES | OFN_EXPLORER | OFN_HIDEREADONLY;
-	printf("- %s\n", ofn.lpstrTitle);
 	if (!GetOpenFileName(&ofn)) return NULL;
 	return(filename);
 }
@@ -530,7 +501,7 @@ void gui()
 	static double time=0;
 	if (ctx)
 	{
-		if (nk_begin(ctx, "Timeline", nk_rect(30, 520, 530, 160),
+		if (nk_begin(ctx, "Controls", nk_rect(30, 520, 530, 160),
 			NK_WINDOW_BORDER | NK_WINDOW_MOVABLE |
 			NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
 		{
@@ -703,5 +674,5 @@ const char* PezInitialize(int width, int height)
 	recompile_shader("raymarch.glsl");
 	recompile_shader("post.glsl");
 	render_fbo = init_fbo(render_width, render_height, false);
-    return "Shader Lathe v0.1";
+    return "Shader Lathe v0.2";
 }
