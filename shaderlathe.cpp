@@ -22,6 +22,8 @@
 #include <sstream>  
 #include <Commdlg.h>
 #include <windows.h>
+#include <fcntl.h>
+#include <io.h>
 
 using namespace std;
 #define MAX_VERTEX_BUFFER 512 * 1024
@@ -199,6 +201,27 @@ void update_rocket()
 	}
 }
 
+static const WORD MAX_CONSOLE_LINES = 1000;
+
+void RedirectIOToConsole()
+{
+	long lStdHandle;
+	FILE *fp;
+	int hConHandle;
+	CONSOLE_SCREEN_BUFFER_INFO coninfo;
+	// set the screen buffer to be big enough to let us scroll text
+	GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &coninfo);
+	coninfo.dwSize.Y = MAX_CONSOLE_LINES;
+	SetConsoleScreenBufferSize(GetStdHandle(STD_OUTPUT_HANDLE),
+		coninfo.dwSize);
+	// redirect unbuffered STDOUT to the console
+	lStdHandle = (long)GetStdHandle(STD_OUTPUT_HANDLE);
+	hConHandle = _open_osfhandle(lStdHandle, _O_TEXT);
+	fp = _fdopen(hConHandle, "w");
+	*stdout = *fp;
+	setvbuf(stdout, NULL, _IONBF, 0);
+}
+
 void glsl_to_config(shader_id prog, char *shader_path,bool ispostproc)
 {
 		vector<string>lines;
@@ -274,18 +297,23 @@ shader_id initShader(shader_id shad,const char *vsh, const char *fsh)
 	glBindProgramPipeline(shad.pid);
 	glUseProgramStages(shad.pid, GL_VERTEX_SHADER_BIT, shad.vsid);
 	glUseProgramStages(shad.pid, GL_FRAGMENT_SHADER_BIT, shad.fsid);
-#ifdef DEBUG
 	int		result;
 	char    info[1536];
-	glGetProgramiv(shad.vsid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.vsid, 1024, NULL, (char *)info); if (!result){ goto fail; }
-	glGetProgramiv(shad.fsid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.fsid, 1024, NULL, (char *)info); if (!result){ goto fail; }
-	glGetProgramiv(shad.pid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.pid, 1024, NULL, (char *)info); if (!result){ goto fail; }
-#endif
+	glGetProgramiv(shad.vsid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.vsid, 1024, NULL, (char *)info); if (!result){ 
+	fprintf(stdout, "[VERTEX SHADER ]%s\n", info);
+	goto fail; }
+	glGetProgramiv(shad.fsid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.fsid, 1024, NULL, (char *)info); if (!result){ 
+	fprintf(stdout, "[FRAGMENT SHADER ]%s\n", info);
+	goto fail; }
+	glGetProgramiv(shad.pid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.pid, 1024, NULL, (char *)info); if (!result){ 
+	fprintf(stdout, "[LINK STATUS ]%s\n", info);
+	goto fail; }
 	glBindProgramPipeline(0);
 	shad.compiled = true;
 	return shad;
 fail:
 	{
+	
 		shad.compiled = false;
 		glDeleteProgram(shad.fsid);
 		glDeleteProgram(shad.vsid);
@@ -430,9 +458,11 @@ void PezUpdate(unsigned int elapsedMilliseconds) {
 			 size_t sizeout = 0;
 			 char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
 			 if (pix_shader) {
+				 fprintf(stdout, "Compiling raymarch shader.....\n");
 				 raymarch_shader = initShader(raymarch_shader, vertex_source, (const char*)pix_shader);
 				 dr_free_file_data(pix_shader);
 			 }
+			 if (raymarch_shader.compiled)fprintf(stdout, "Compiled raymarch shader\n");
 		 }
 		 last_shaderload = timeGetTime();
 	 }
@@ -453,15 +483,17 @@ void PezUpdate(unsigned int elapsedMilliseconds) {
 			 size_t sizeout = 0;
 			 char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
 			 if (pix_shader) {
+				 fprintf(stdout, "Compiling post-process shader.....\n");
 				 post_shader = initShader(post_shader, vertex_source, (const char*)pix_shader);
 				 dr_free_file_data(pix_shader);
 			 }
+			 if(post_shader.compiled)fprintf(stdout, "Compiled post-process shader\n");
 		 }
 		 last_shaderload = timeGetTime();
 	 }
 	shaderconfig_map.clear();
-	if(raymarch_shader.compiled)glsl_to_config(raymarch_shader, "raymarch.glsl",false);
-	if (post_shader.compiled) glsl_to_config(post_shader, "post.glsl",true);
+	if (raymarch_shader.compiled)glsl_to_config(raymarch_shader, "raymarch.glsl", false);
+	if (post_shader.compiled)glsl_to_config(post_shader, "post.glsl", true);
  }
 
 char *get_file(void) {
@@ -643,6 +675,9 @@ void PezRender()
 
 const char* PezInitialize(int width, int height)
 {
+	AllocConsole();
+	AttachConsole(GetCurrentProcessId());
+	freopen("CON", "w", stdout);
 	shaderconfig_map.clear();
 	BASS_Init(-1, 44100, 0, NULL, NULL);
 	glGenVertexArrays(1, &scene_vao);
