@@ -300,13 +300,13 @@ shader_id initShader(shader_id shad,const char *vsh, const char *fsh)
 	int		result;
 	char    info[1536];
 	glGetProgramiv(shad.vsid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.vsid, 1024, NULL, (char *)info); if (!result){ 
-	fprintf(stdout, "[VERTEX SHADER ]%s\n", info);
+	fprintf(stdout, "[VERTEX SHADER ]: %s\n", info);
 	goto fail; }
 	glGetProgramiv(shad.fsid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.fsid, 1024, NULL, (char *)info); if (!result){ 
-	fprintf(stdout, "[FRAGMENT SHADER ]%s\n", info);
+	fprintf(stdout, "[FRAGMENT SHADER ]: %s\n", info);
 	goto fail; }
 	glGetProgramiv(shad.pid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.pid, 1024, NULL, (char *)info); if (!result){ 
-	fprintf(stdout, "[LINK STATUS ]%s\n", info);
+	fprintf(stdout, "[LINK STATUS ]: %s\n", info);
 	goto fail; }
 	glBindProgramPipeline(0);
 	shad.compiled = true;
@@ -462,7 +462,11 @@ void PezUpdate(unsigned int elapsedMilliseconds) {
 				 raymarch_shader = initShader(raymarch_shader, vertex_source, (const char*)pix_shader);
 				 dr_free_file_data(pix_shader);
 			 }
-			 if (raymarch_shader.compiled)fprintf(stdout, "Compiled raymarch shader\n");
+			 if (raymarch_shader.compiled)
+			 {
+				 fprintf(stdout, "Compiled raymarch shader\n");
+			 }
+			 else fprintf(stdout, "Failed to compile raymarch shader\n");
 		 }
 		 last_shaderload = timeGetTime();
 	 }
@@ -487,7 +491,12 @@ void PezUpdate(unsigned int elapsedMilliseconds) {
 				 post_shader = initShader(post_shader, vertex_source, (const char*)pix_shader);
 				 dr_free_file_data(pix_shader);
 			 }
-			 if(post_shader.compiled)fprintf(stdout, "Compiled post-process shader\n");
+			 if (post_shader.compiled)
+			 {
+				 fprintf(stdout, "Compiled post-process shader\n");
+			 }
+			 else
+				 fprintf(stdout, "Failed to compile post-process shader\n");
 		 }
 		 last_shaderload = timeGetTime();
 	 }
@@ -563,6 +572,10 @@ void gui()
 			{
 				BASS_ChannelSetPosition(music_stream,0,BASS_POS_INEXACT);
 				sceneTime = 0;
+			}
+			if (nk_button_label(ctx, "Clear console"))
+			{
+				system("cls");
 			}
 			if (BASS_ChannelIsActive(music_stream) != BASS_ACTIVE_STOPPED)
 			{
