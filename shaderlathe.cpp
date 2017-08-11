@@ -418,6 +418,49 @@ void PezUpdate(unsigned int elapsedMilliseconds) {
 	 return path;
  }
 
+
+ void compile_raymarchshader(char* path)
+ {
+	 if (glIsProgramPipeline(raymarch_shader.pid)) {
+		 glDeleteProgram(raymarch_shader.fsid);
+		 glDeleteProgram(raymarch_shader.vsid);
+		 glBindProgramPipeline(0);
+		 glDeleteProgramPipelines(1, &raymarch_shader.pid);
+	 }
+	 raymarch_shader = { 0 };
+	 raymarch_shader.compiled = false;
+	 size_t sizeout = 0;
+	 char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
+	 if (pix_shader) {
+		 fprintf(stdout, "Compiling raymarch shader.....\n");
+		 raymarch_shader = initShader(raymarch_shader, vertex_source, (const char*)pix_shader);
+		 dr_free_file_data(pix_shader);
+	 }
+	 char *label1 = raymarch_shader.compiled ? "Compiled raymarch shader\n" : "Failed to compile raymarch shader\n";
+	 fprintf(stdout, label1);
+ }
+
+ void compile_ppshader(char* path)
+ {
+	 if (glIsProgramPipeline(post_shader.pid)) {
+		 glDeleteProgram(post_shader.fsid);
+		 glDeleteProgram(post_shader.vsid);
+		 glBindProgramPipeline(0);
+		 glDeleteProgramPipelines(1, &post_shader.pid);
+	 }
+	 post_shader = { 0 };
+	 post_shader.compiled = false;
+	 size_t sizeout = 0;
+	 char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
+	 if (pix_shader) {
+		 fprintf(stdout, "Compiling post-process shader.....\n");
+		 post_shader = initShader(post_shader, vertex_source, (const char*)pix_shader);
+		 dr_free_file_data(pix_shader);
+	 }
+	 char *label1 = post_shader.compiled ? "Compiled post-process shader\n" : "Failed to compile post-process shader\n";
+	 fprintf(stdout, label1);
+ }
+
  void recompile_shader(char* path)
  {
 	 if (strcmp(getFileNameFromPath(path), "raymarch.glsl") == 0)
@@ -426,23 +469,8 @@ void PezUpdate(unsigned int elapsedMilliseconds) {
 		unsigned long load = timeGetTime();
 		 if (load-last_shaderload > 200) { //take into account actual shader recompile time
 			 Sleep(100);
-			 if (glIsProgramPipeline(raymarch_shader.pid)) {
-				 glDeleteProgram(raymarch_shader.fsid);
-				 glDeleteProgram(raymarch_shader.vsid);
-				 glBindProgramPipeline(0);
-				 glDeleteProgramPipelines(1, &raymarch_shader.pid);
-			 }
-			 raymarch_shader = { 0 };
-			 raymarch_shader.compiled = false;
-			 size_t sizeout = 0;
-			 char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
-			 if (pix_shader) {
-				 fprintf(stdout, "Compiling raymarch shader.....\n");
-				 raymarch_shader = initShader(raymarch_shader, vertex_source, (const char*)pix_shader);
-				 dr_free_file_data(pix_shader);
-			 }
-			 char *label1 =raymarch_shader.compiled ? "Compiled raymarch shader\n" : "Failed to compile raymarch shader\n";
-			 fprintf(stdout, label1);
+			 compile_raymarchshader(path);
+			
 		 }
 		 last_shaderload = timeGetTime();
 	 }
@@ -452,23 +480,7 @@ void PezUpdate(unsigned int elapsedMilliseconds) {
 		 unsigned long load = timeGetTime();
 		 if (load - last_shaderload > 200) { //take into account actual shader recompile time
 			 Sleep(100);
-			 if (glIsProgramPipeline(post_shader.pid)) {
-				 glDeleteProgram(post_shader.fsid);
-				 glDeleteProgram(post_shader.vsid);
-				 glBindProgramPipeline(0);
-				 glDeleteProgramPipelines(1, &post_shader.pid);
-			 }
-			 post_shader = { 0 };
-			 post_shader.compiled = false;
-			 size_t sizeout = 0;
-			 char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
-			 if (pix_shader) {
-				 fprintf(stdout, "Compiling post-process shader.....\n");
-				 post_shader = initShader(post_shader, vertex_source, (const char*)pix_shader);
-				 dr_free_file_data(pix_shader);
-			 }
-			 char *label1 = post_shader.compiled ? "Compiled post-process shader\n" : "Failed to compile post-process shader\n";
-			 fprintf(stdout, label1);
+			 compile_ppshader(path);
 		 }
 		 last_shaderload = timeGetTime();
 	 }
@@ -671,8 +683,15 @@ const char* PezInitialize(int width, int height)
 	dr_get_executable_directory_path(path, sizeof(path));
 	dr_set_current_directory(path);
 	drfsw_add_directory(context, path);
-	recompile_shader("raymarch.glsl");
-	recompile_shader("post.glsl");
+
+
+	compile_raymarchshader("raymarch.glsl");
+	compile_ppshader("post.glsl");
+	shaderconfig_map.clear();
+	if (raymarch_shader.compiled)glsl_to_config(raymarch_shader, "raymarch.glsl", false);
+	if (post_shader.compiled)glsl_to_config(post_shader, "post.glsl", true);
+
+
 	render_fbo = init_fbo(render_width, render_height, false);
     return "Shader Lathe v0.2";
 }
