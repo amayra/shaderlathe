@@ -683,8 +683,6 @@ const char* PezInitialize(int width, int height)
 	dr_get_executable_directory_path(path, sizeof(path));
 	dr_set_current_directory(path);
 	drfsw_add_directory(context, path);
-
-
 	compile_raymarchshader("raymarch.glsl");
 	compile_ppshader("post.glsl");
 	shaderconfig_map.clear();
