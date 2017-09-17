@@ -8,6 +8,5 @@ Has:
 * Realtime editing of shader parameters (raymarch/postprocess)
 * Scripting of shader parameters via GNU Rocket
 * Audio playback with restart/pause/play
-* peanut
 
 ![shaderlathe](http://i.imgur.com/qOfY9XV.png)
