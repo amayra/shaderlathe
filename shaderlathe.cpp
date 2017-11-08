@@ -25,6 +25,10 @@
 #include <fcntl.h>
 #include <io.h>
 
+#include <objidl.h>
+#include <gdiplus.h>
+using namespace Gdiplus;
+
 using namespace std;
 #define MAX_VERTEX_BUFFER 512 * 1024
 #define MAX_ELEMENT_BUFFER 128 * 1024
@@ -41,6 +45,8 @@ struct glsl2configmap
 	bool ispost;
 };
 std::vector<glsl2configmap>shaderconfig_map;
+
+GLuint lookup_tex[4] = { };
 
 struct shader_id
 {
@@ -354,6 +360,68 @@ FBOELEM init_fbo(int width, int height, bool fp)
 	return elem;
 }
 
+unsigned char *LoadImageMemory(unsigned char* data, int size, int * width, int * height) {
+	IStream* pStream;
+	HRESULT hr;
+	using namespace Gdiplus;
+	HGLOBAL hMem = ::GlobalAlloc(GMEM_MOVEABLE, size);
+	LPVOID pImage = ::GlobalLock(hMem);
+	CopyMemory(pImage, data, size);
+	if (::CreateStreamOnHGlobal(hMem, FALSE, &pStream) != S_OK)
+		return 0;
+	else
+	{
+		Bitmap *pBitmap = Bitmap::FromStream(pStream, false);   //FAILS on WIN32
+		*width = pBitmap->GetWidth();
+		*height = pBitmap->GetHeight();
+		int pitch = ((*width * 32 + 31) & ~31) >> 3;
+		BitmapData data2;
+		Gdiplus::Rect rect(0, 0, *width, *height);
+		unsigned char* pixels = (GLubyte *)malloc(pitch * *height);
+		memset(pixels, 0, pitch* *height);
+		if (pBitmap->LockBits(&rect, ImageLockModeRead, PixelFormat32bppARGB, &data2) != Gdiplus::Ok)
+			return 0;
+		//ARGB to RGBA
+		uint8_t *p = static_cast<uint8_t *>(data2.Scan0);
+		for (int y = 0; y < *height; y++)
+			for (int x = 0; x < *width; x++)
+			{
+				uint8_t tmp = p[2];
+				p[2] = p[0];
+				p[0] = tmp;
+				p += 4;
+			}
+		if (data2.Stride == pitch){
+			memcpy(pixels, data2.Scan0, pitch * *height);
+		}
+		else{
+			for (int i = 0; i < *height; ++i)
+			memcpy(&pixels[i * pitch], &p[i * data2.Stride], pitch);
+		}
+		pBitmap->UnlockBits(&data2);
+		//image is now in RGBA
+		delete[] pBitmap;
+		GlobalUnlock(hMem);
+		GlobalFree(hMem);
+		return pixels;
+	}
+}
+
+GLuint loadTexMemory(unsigned char* data2, int size) {
+	int x, y, n;
+	GLuint tex;
+	unsigned char *data = LoadImageMemory(data2, size, &x, &y);
+	glGenTextures(1, &tex);
+	glBindTexture(GL_TEXTURE_2D, tex);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, x, y, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+	glGenerateMipmap(GL_TEXTURE_2D);
+	free(data);
+	return tex;
+}
+
+
 void draw(float time, shader_id program, int xres, int yres, GLuint texture){
 	glBindProgramPipeline(program.pid);
 	glViewport(0, 0, xres, yres);
@@ -363,6 +431,18 @@ void draw(float time, shader_id program, int xres, int yres, GLuint texture){
 		glBindTexture(GL_TEXTURE_2D, texture);
 		glProgramUniform1i(program.fsid, 2, 0);
 	}
+
+	for (int i=0;i<4;i++)
+	{
+		glActiveTexture(GL_TEXTURE1 + i);
+		glBindTexture(GL_TEXTURE_2D, lookup_tex[i]);
+		TCHAR pathz[MAX_PATH] = { 0 };
+		sprintf(pathz, "tex%d", i);
+		int uniform_loc = glGetUniformLocation(program.fsid, pathz);
+		glProgramUniform1i(program.fsid,uniform_loc , 1+i);
+	}
+
+
 	float fparams[4] = { xres, yres, time, 0.0 };
 	glProgramUniform4fv(program.fsid, 1, 1, fparams);
 	for (int i = 0; i < shaderconfig_map.size(); i++)
@@ -537,6 +617,8 @@ void gui()
 					if (BASS_ChannelIsActive(music_stream) != BASS_ACTIVE_STOPPED)BASS_StreamFree(music_stream);
 				}
 			}
+
+
 			char *label1 = paused ? "Resume" : "Pause";
 			if (nk_button_label(ctx, label1))
 			{
@@ -562,14 +644,13 @@ void gui()
 			}
 			if (BASS_ChannelIsActive(music_stream) != BASS_ACTIVE_STOPPED)
 			{
-				float max = time;
 				nk_layout_row_dynamic(ctx, 25, 1);
 				char label1[100] = { 0 };
-				sprintf(label1, "Progress: %.2f / %.2f seconds", sceneTime,max);
+				sprintf(label1, "Progress: %.2f / %.2f seconds", sceneTime,time);
 				nk_label(ctx, label1, NK_TEXT_LEFT);
 				nk_layout_row_static(ctx, 30, 500, 2);
 
-				seek = nk_slider_float(ctx, 0, (float*)&sceneTime, max, 0.1);
+				seek = nk_slider_float(ctx, 0, (float*)&sceneTime, time, 0.1);
 				if (seek)
 				{
 					BASS_ChannelSetPosition(
@@ -591,44 +672,37 @@ void gui()
 			}
 		}
 		nk_end(ctx);
-		if (nk_begin(ctx, "Raymarch Uniforms", nk_rect(900, 30, 300, 200),
+
+		int sz1 = shaderconfig_map.size() * 30 * 3;
+		int sz = sz1 + 96;
+		if (nk_begin(ctx, "Uniforms", nk_rect(900, 30, 300,sz),
 			NK_WINDOW_BORDER | NK_WINDOW_MOVABLE |
 			NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
 		{
 			for (int i = 0; i < shaderconfig_map.size(); i++) {
-				if (strstr(shaderconfig_map[i].name, "_rkt") == NULL  && !shaderconfig_map[i].ispost) {
+				if (strstr(shaderconfig_map[i].name, "_rkt") == NULL) {
 					nk_layout_row_dynamic(ctx, 25, 1);
 					char label1[100] = { 0 };
-					sprintf(label1, "%s: %.2f", shaderconfig_map[i].name, shaderconfig_map[i].val);
+					char *shader_type = shaderconfig_map[i].ispost ? "%s: %.2f (post-process)" : "%s: %.2f (raymarch)";
+					sprintf(label1, shader_type, shaderconfig_map[i].name, shaderconfig_map[i].val);
 					nk_label(ctx, label1, NK_TEXT_LEFT);
 					nk_layout_row_static(ctx, 30, 250, 2);
 					nk_slider_float(ctx, shaderconfig_map[i].min, &shaderconfig_map[i].val, shaderconfig_map[i].max, shaderconfig_map[i].inc);
 				}
 			}
+				struct nk_command_buffer* canvas;
+				struct nk_rect totalSpace;
+				float arWnd;
+				float oldVal;
+				const struct nk_color gridColor = nk_rgba(255, 255, 255, 255);
+				canvas = nk_window_get_canvas(ctx);
+				for (int i = 0; i < 4; i++)
+				{
+				struct nk_image myImage = nk_image_id((int)lookup_tex[i]);
+				nk_draw_image(canvas, nk_rect(900 + (75 * i), sz1+40, 64, 64), &myImage, gridColor);
+			    }
 		}
 		nk_end(ctx);
-
-		if (post_shader.compiled)
-		{
-			if (nk_begin(ctx, "Post-Process Uniforms", nk_rect(900, 400, 300, 200),
-				NK_WINDOW_BORDER | NK_WINDOW_MOVABLE |
-				NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
-			{
-				for (int i = 0; i < shaderconfig_map.size(); i++) {
-					if (strstr(shaderconfig_map[i].name, "_rkt") == NULL && shaderconfig_map[i].ispost) {
-						nk_layout_row_dynamic(ctx, 25, 1);
-						char label1[100] = { 0 };
-						sprintf(label1, "%s: %.2f", shaderconfig_map[i].name, shaderconfig_map[i].val);
-						nk_label(ctx, label1, NK_TEXT_LEFT);
-						nk_layout_row_static(ctx, 30, 250, 2);
-						nk_slider_float(ctx, shaderconfig_map[i].min, &shaderconfig_map[i].val, shaderconfig_map[i].max, shaderconfig_map[i].inc);
-					}
-				}
-			}
-			nk_end(ctx);
-		}
-	
-	  
 	}
 }
 
@@ -669,8 +743,45 @@ void PezRender()
 	nk_pez_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
 }
 
+
+#include <sys/stat.h>
+unsigned char *readFile(const char *fileName, int * size,bool text=false)
+{
+	FILE *file = fopen(fileName, text?"r":"rb");
+	if (file == NULL)
+	{
+		MessageBox(NULL, "Cannot open shader file!", "ERROR",
+			MB_OK | MB_ICONEXCLAMATION);
+		return 0;
+	}
+	fseek(file, 0, SEEK_END);   // non-portable
+	int size2 = ftell(file);
+	fseek(file, 0, SEEK_SET);   // non-portable
+	unsigned char *buffer = new unsigned char[size2];
+	*size = fread(buffer, 1, size2, file);
+	if(text)buffer[size2] = 0;
+	fclose(file);
+	return buffer;
+}
+
 const char* PezInitialize(int width, int height)
 {
+	GdiplusStartupInput gdiplusStartupInput;
+	ULONG_PTR           gdiplusToken;
+	// Initialize GDI+.
+	GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+
+
+	for (int i = 0; i < 4; i++)
+	{
+		TCHAR pathz[MAX_PATH] = { 0 };
+		sprintf(pathz, "LUT/tex_%d.png", i);
+		int size=0,width=0,height=0;
+		unsigned char *data = readFile(pathz, &size);
+		lookup_tex[i] = loadTexMemory(data, size);
+		free(data);
+	}
+
 	AllocConsole();
 	AttachConsole(GetCurrentProcessId());
 	freopen("CON", "w", stdout);
@@ -688,8 +799,6 @@ const char* PezInitialize(int width, int height)
 	shaderconfig_map.clear();
 	if (raymarch_shader.compiled)glsl_to_config(raymarch_shader, "raymarch.glsl", false);
 	if (post_shader.compiled)glsl_to_config(post_shader, "post.glsl", true);
-
-
 	render_fbo = init_fbo(render_width, render_height, false);
-    return "Shader Lathe v0.2";
+    return "Shader Lathe v0.3";
 }
