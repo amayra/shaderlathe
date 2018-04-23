@@ -690,16 +690,13 @@ void gui()
 					nk_slider_float(ctx, shaderconfig_map[i].min, &shaderconfig_map[i].val, shaderconfig_map[i].max, shaderconfig_map[i].inc);
 				}
 			}
-				struct nk_command_buffer* canvas;
-				struct nk_rect totalSpace;
-				float arWnd;
-				float oldVal;
+				struct nk_command_buffer* canvas = nk_window_get_canvas(ctx);
+				struct nk_vec2 totalSpace = nk_window_get_position(ctx);
 				const struct nk_color gridColor = nk_rgba(255, 255, 255, 255);
-				canvas = nk_window_get_canvas(ctx);
 				for (int i = 0; i < 4; i++)
 				{
 				struct nk_image myImage = nk_image_id((int)lookup_tex[i]);
-				nk_draw_image(canvas, nk_rect(900 + (75 * i), sz1+40, 64, 64), &myImage, gridColor);
+				nk_draw_image(canvas, nk_rect(totalSpace.x + (75 * i),sz1+ totalSpace.y, 64, 64), &myImage, gridColor);
 			    }
 		}
 		nk_end(ctx);
