@@ -330,7 +330,7 @@ GLuint init_rendertexture(int resx, int resy)
 FBOELEM init_fbo(int width, int height, bool fp)
 {
 	FBOELEM elem = { 0 };
-	int current, enderr = 1;
+	int current;
 	GLuint error = 0;
 	glGenFramebuffers(1, &elem.fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, elem.fbo);
@@ -352,7 +352,6 @@ FBOELEM init_fbo(int width, int height, bool fp)
 	if (error != GL_FRAMEBUFFER_COMPLETE) {
 		FBOELEM err = { 0 };
 		elem.status = 0;
-		enderr = 0;
 		return err;
 	}
 	elem.status = 1;
@@ -381,9 +380,14 @@ unsigned char *LoadImageMemory(unsigned char* data, int size, int * width, int *
 		BitmapData data2;
 		Gdiplus::Rect rect(0, 0, *width, *height);
 		unsigned char* pixels = (GLubyte *)malloc(pitch * *height);
-		memset(pixels, 0, pitch* *height);
+		if (!pixels)return 0;
+		memset(pixels, 0, (pitch* *height));
 		if (pBitmap->LockBits(&rect, ImageLockModeRead, PixelFormat32bppARGB, &data2) != Gdiplus::Ok)
+		{
+			free(pixels);
 			return 0;
+		}
+			
 		//ARGB to RGBA
 		uint8_t *p = static_cast<uint8_t *>(data2.Scan0);
 		for (int y = 0; y < *height; y++)
@@ -520,7 +524,7 @@ void compile_raymarchshader(char* path)
 		dr_free_file_data(pix_shader);
 	}
 	char *label1 = raymarch_shader.compiled ? "Compiled raymarch shader\n" : "Failed to compile raymarch shader\n";
-	fprintf(stdout, label1);
+	printf("%s",label1);
 }
 
 void compile_ppshader(char* path)
@@ -536,12 +540,12 @@ void compile_ppshader(char* path)
 	size_t sizeout = 0;
 	char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
 	if (pix_shader) {
-		fprintf(stdout, "Compiling post-process shader.....\n");
+		printf("Compiling post-process shader.....\n");
 		post_shader = initShader(post_shader, vertex_source, (const char*)pix_shader);
 		dr_free_file_data(pix_shader);
 	}
 	char *label1 = post_shader.compiled ? "Compiled post-process shader\n" : "Failed to compile post-process shader\n";
-	fprintf(stdout, label1);
+	printf("%s", label1);
 }
 
 void recompile_shader(char* path)
@@ -588,7 +592,7 @@ char *get_file(void) {
 	ofn.lpstrTitle = "Select the input audio file";
 	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_LONGNAMES | OFN_EXPLORER | OFN_HIDEREADONLY;
 	if (!GetOpenFileName(&ofn)) return NULL;
-	return(filename);
+	return filename;
 }
 
 void gui()
@@ -788,13 +792,12 @@ const char* PezInitialize(int width, int height)
 		int size = 0, width = 0, height = 0;
 		unsigned char *data = readFile(pathz, &size);
 		lookup_tex[i] = loadTexMemory(data, size);
-		free(data);
+		delete []data;
 	}
 
 	AllocConsole();
 	AttachConsole(GetCurrentProcessId());
 	freopen("CON", "w", stdout);
-	shaderconfig_map.clear();
 	BASS_Init(-1, 44100, 0, NULL, NULL);
 	glGenVertexArrays(1, &scene_vao);
 	rocket_connected = rocket_init("rocket");
