@@ -183,7 +183,8 @@ void update_rocket()
 	if (rocket_connected)
 	{
 		float row_f = ms_to_row_f(sceneTime, rps);
-		if (sync_update(device, (int)floor(row_f), &cb, 0))rocket_connected = sync_connect(device, "localhost", SYNC_DEFAULT_PORT);
+		if (sync_update(device, (int)floor(row_f), &cb, 0))
+			rocket_connected = sync_connect(device, "localhost", SYNC_DEFAULT_PORT);
 		if (rocket_connected)
 		{
 			for (int i = 0; i < shaderconfig_map.size(); i++)
@@ -217,8 +218,7 @@ void glsl_to_config(shader_id prog, char *shader_path, bool ispostproc)
 		int name_len = -1, num = -1;
 		GLenum type = GL_ZERO;
 		char name[100] = { 0 };
-		glGetActiveUniform(prog.fsid, GLuint(i), sizeof(name) - 1,
-			&name_len, &num, &type, name);
+		glGetActiveUniform(prog.fsid, GLuint(i), sizeof(name) - 1,&name_len, &num, &type, name);
 		name[name_len] = 0;
 		if (type == GL_FLOAT) {
 			for (int j = 0; j < lines.size(); j++)
@@ -559,8 +559,10 @@ void recompile_shader(char* path)
 		last_shaderload = timeGetTime();
 	}
 	shaderconfig_map.clear();
-	if (raymarch_shader.compiled)glsl_to_config(raymarch_shader, "raymarch.glsl", false);
-	if (post_shader.compiled)glsl_to_config(post_shader, "post.glsl", true);
+	if (raymarch_shader.compiled)
+		glsl_to_config(raymarch_shader, "raymarch.glsl", false);
+	if (post_shader.compiled)
+		glsl_to_config(post_shader, "post.glsl", true);
 }
 
 char *get_file(void) {
@@ -587,6 +589,7 @@ void gui()
 	static double time = 0;
 	if (ctx)
 	{
+		//toolbar widget
 		if (nk_begin(ctx, "Controls", nk_rect(30, 520, 530, 160),
 			NK_WINDOW_BORDER | NK_WINDOW_MOVABLE |
 			NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
@@ -597,7 +600,8 @@ void gui()
 				char *file = get_file();
 				if (file)
 				{
-					if (BASS_ChannelIsActive(music_stream) != BASS_ACTIVE_STOPPED)	BASS_StreamFree(music_stream);
+					if (BASS_ChannelIsActive(music_stream) != BASS_ACTIVE_STOPPED)	
+						BASS_StreamFree(music_stream);
 					if (music_stream = BASS_StreamCreateFile(FALSE, file, 0, 0, 0))
 					{
 						QWORD len = BASS_ChannelGetLength(music_stream, BASS_POS_BYTE); // the length in bytes
@@ -607,9 +611,8 @@ void gui()
 					}
 				}
 				else
-				{
-					if (BASS_ChannelIsActive(music_stream) != BASS_ACTIVE_STOPPED)BASS_StreamFree(music_stream);
-				}
+					if (BASS_ChannelIsActive(music_stream) != BASS_ACTIVE_STOPPED)
+						BASS_StreamFree(music_stream);
 			}
 			char *label1 = paused ? "Resume" : "Pause";
 			if (nk_button_label(ctx, label1))
@@ -641,7 +644,6 @@ void gui()
 				sprintf(label1, "Progress: %.2f / %.2f seconds", sceneTime, time);
 				nk_label(ctx, label1, NK_TEXT_LEFT);
 				nk_layout_row_static(ctx, 30, 500, 2);
-
 				seek = nk_slider_float(ctx, 0, (float*)&sceneTime, time, 0.1);
 				if (seek)
 				{
@@ -664,7 +666,7 @@ void gui()
 			}
 		}
 		nk_end(ctx);
-
+		//uniform widget
 		int sz1 = shaderconfig_map.size() * 30 * 3;
 		int sz = sz1 + 96;
 		if (nk_begin(ctx, "Uniforms", nk_rect(900, 30, 300, sz),
@@ -708,7 +710,8 @@ void PezRender()
 	}
 	glClear(GL_COLOR_BUFFER_BIT);
 	glClearColor(0, 0, 0, 0.0);
-	if (seek)sceneTime = floor(sceneTime);
+	if (seek)
+		sceneTime = floor(sceneTime);
 	update_rocket();
 	if (post_shader.compiled)
 	{
