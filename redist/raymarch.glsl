@@ -34,11 +34,10 @@ vec3 get_normal(vec3 p)
 void main(void)
 {
 	vec2 p = 2.0 * gl_FragCoord.xy / parameters.xy - 1.0;
-	
 	p.x *= parameters.x / parameters.y;
 
 	vec3 ro = vec3(0.0, 0.0, 1.7);
-	vec3 rd = normalize(vec3(p.x, p.y, -1.4));
+	vec3 rd = normalize(vec3(p, -1.4));
 	vec3 color = (1.0 - vec3(length(p*0.5)))*0.2;
 
 	vec3 pos = ro;

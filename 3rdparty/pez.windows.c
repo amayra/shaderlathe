@@ -128,18 +128,6 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
 		  
 		PezRender();
 		PezUpdate(deltaTime);
-			// shitty framelimiter
-	/*		DWORD current_ticks = timeGetTime();
-			DWORD target_ticks = baseticks + (DWORD)((float)framecount * rateticks);
-			framecount++;
-			if (current_ticks <= target_ticks) {
-				DWORD the_delay = target_ticks - current_ticks;
-				Sleep(the_delay);
-			}
-			else {
-				framecount = 0;
-				baseticks = timeGetTime();
-			}*/
 		SwapBuffers(hDC);
     }
     bomb:
@@ -156,8 +144,7 @@ LRESULT WINAPI MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			PostQuitMessage(0);
 			break;
     }
-	if (nk_pez_handle_event(hWnd, msg, wParam, lParam))
-		return 0;
+	if (nk_pez_handle_event(hWnd, msg, wParam, lParam))return 0;
     return DefWindowProc(hWnd, msg, wParam, lParam);
 }
 

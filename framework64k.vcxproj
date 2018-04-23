@@ -197,7 +197,7 @@
     </ResourceCompile>
     <Link>
       <AdditionalDependencies>opengl32.lib;winmm.lib;glu32.lib;Ws2_32.lib;gdi32.lib;gdiplus.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>exe\intro_debug.exe</OutputFile>
+      <OutputFile>redist\shaderlathe.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>intro_debug.pdb</ProgramDatabaseFile>
@@ -311,7 +311,7 @@
     </ResourceCompile>
     <Link>
       <AdditionalDependencies>opengl32.lib;winmm.lib;glu32.lib;gdi32.lib;gdiplus.lib;comctl32.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>exe\shaderlathe.exe</OutputFile>
+      <OutputFile>redist\shaderlathe.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
       <GenerateMapFile>true</GenerateMapFile>

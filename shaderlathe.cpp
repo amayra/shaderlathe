@@ -764,6 +764,15 @@ unsigned char *readFile(const char *fileName, int * size,bool text=false)
 	return buffer;
 }
 
+
+TCHAR* lut_files[]
+{
+	"tex12.jpg",
+	"tex07.jpg",
+	"tex00.jpg",
+	"tex19.png"
+};
+
 const char* PezInitialize(int width, int height)
 {
 	GdiplusStartupInput gdiplusStartupInput;
@@ -775,7 +784,7 @@ const char* PezInitialize(int width, int height)
 	for (int i = 0; i < 4; i++)
 	{
 		TCHAR pathz[MAX_PATH] = { 0 };
-		sprintf(pathz, "LUT/tex_%d.png", i);
+		wsprintf(pathz, "LUT/%s",lut_files[i]);
 		int size=0,width=0,height=0;
 		unsigned char *data = readFile(pathz, &size);
 		lookup_tex[i] = loadTexMemory(data, size);
