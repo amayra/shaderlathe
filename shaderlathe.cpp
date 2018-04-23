@@ -137,7 +137,7 @@ static void xpause(void* data, int flag)
 		BASS_ChannelPause(music_stream);
 		audio_is_playing = 0;
 	}
-		
+
 	else
 	{
 		audio_is_playing = 1;
@@ -150,7 +150,7 @@ static void xset_row(void* data, int row)
 	int newtime_ms = row_to_ms_round(row, rps);
 	sceneTime = newtime_ms;
 	if (BASS_ChannelIsActive(music_stream) != BASS_ACTIVE_STOPPED)
-	BASS_ChannelSetPosition(music_stream,BASS_ChannelSeconds2Bytes(music_stream, sceneTime),BASS_POS_BYTE);
+		BASS_ChannelSetPosition(music_stream, BASS_ChannelSeconds2Bytes(music_stream, sceneTime), BASS_POS_BYTE);
 	(void)data;
 }
 
@@ -207,73 +207,73 @@ void update_rocket()
 	}
 }
 
-void glsl_to_config(shader_id prog, char *shader_path,bool ispostproc)
+void glsl_to_config(shader_id prog, char *shader_path, bool ispostproc)
 {
-		vector<string>lines;
-		lines.clear();
-		ifstream openFile(shader_path);
-		string stringToStore; //string to store file line
-		while (getline(openFile, stringToStore)) { //checking for existence of file
-			lines.push_back(stringToStore);
-		}
-		openFile.close(); //closes file after done
-		//convert GLSL uniforms to variables
-		int total = -1;
-		glGetProgramiv(prog.fsid, GL_ACTIVE_UNIFORMS, &total);
-		for (int i = 0; i < total; ++i) {
-			int name_len = -1, num = -1;
-			GLenum type = GL_ZERO;
-			char name[100] = { 0 };
-			glGetActiveUniform(prog.fsid, GLuint(i), sizeof(name) - 1,
+	vector<string>lines;
+	lines.clear();
+	ifstream openFile(shader_path);
+	string stringToStore; //string to store file line
+	while (getline(openFile, stringToStore)) { //checking for existence of file
+		lines.push_back(stringToStore);
+	}
+	openFile.close(); //closes file after done
+	//convert GLSL uniforms to variables
+	int total = -1;
+	glGetProgramiv(prog.fsid, GL_ACTIVE_UNIFORMS, &total);
+	for (int i = 0; i < total; ++i) {
+		int name_len = -1, num = -1;
+		GLenum type = GL_ZERO;
+		char name[100] = { 0 };
+		glGetActiveUniform(prog.fsid, GLuint(i), sizeof(name) - 1,
 			&name_len, &num, &type, name);
-			name[name_len] = 0;
-			if (type == GL_FLOAT) {
-				for (int j= 0; j < lines.size(); j++)
+		name[name_len] = 0;
+		if (type == GL_FLOAT) {
+			for (int j = 0; j < lines.size(); j++)
+			{
+				string shit = "uniform float "; shit += name;
+				if (strstr(lines[j].c_str(), name))
 				{
-					string shit = "uniform float ";shit += name;
-					if (strstr(lines[j].c_str(),name))
+					//Nuklear (user controllable)
+					std::size_t found = lines[j].rfind("//");
+					if (found != std::string::npos)
 					{
-						//Nuklear (user controllable)
-						std::size_t found = lines[j].rfind("//");
-						if (found != std::string::npos)
-						{
-							string shit2 = lines[j].substr(found + 2, lines[j].length());
-							stringstream parse1(shit2);
-							parse1.precision(6);
-							double min = 0., max = 0., inc = 0.00;
-							parse1 >> fixed >> min;
-							parse1 >> fixed >> max;
-							parse1 >> fixed >> inc;
-							glsl2configmap subObj = { 0 };
-							strcpy(subObj.name, name);
-							subObj.frag_number = prog.fsid;
-							subObj.program_num = prog.pid;
-							subObj.inc = inc;
-							subObj.min = min;
-							subObj.max = max;
-							subObj.ispost = ispostproc;
-							shaderconfig_map.push_back(subObj);
-						}
-						//GNU Rocket (user scriptable)
-						else if(lines[j].rfind("_rkt") != std::string::npos && rocket_connected)
-						{
-								glsl2configmap subObj = { 0 };
-								strcpy(subObj.name, name);
-								subObj.frag_number = prog.fsid;
-								subObj.program_num = prog.pid;
-								float val = 0.0;
-								subObj.inc = val;
-								subObj.min = subObj.max = subObj.inc;
-								subObj.ispost = ispostproc;
-								shaderconfig_map.push_back(subObj);
-						}
+						string shit2 = lines[j].substr(found + 2, lines[j].length());
+						stringstream parse1(shit2);
+						parse1.precision(6);
+						double min = 0., max = 0., inc = 0.00;
+						parse1 >> fixed >> min;
+						parse1 >> fixed >> max;
+						parse1 >> fixed >> inc;
+						glsl2configmap subObj = { 0 };
+						strcpy(subObj.name, name);
+						subObj.frag_number = prog.fsid;
+						subObj.program_num = prog.pid;
+						subObj.inc = inc;
+						subObj.min = min;
+						subObj.max = max;
+						subObj.ispost = ispostproc;
+						shaderconfig_map.push_back(subObj);
+					}
+					//GNU Rocket (user scriptable)
+					else if (lines[j].rfind("_rkt") != std::string::npos && rocket_connected)
+					{
+						glsl2configmap subObj = { 0 };
+						strcpy(subObj.name, name);
+						subObj.frag_number = prog.fsid;
+						subObj.program_num = prog.pid;
+						float val = 0.0;
+						subObj.inc = val;
+						subObj.min = subObj.max = subObj.inc;
+						subObj.ispost = ispostproc;
+						shaderconfig_map.push_back(subObj);
 					}
 				}
 			}
 		}
+	}
 }
 
-shader_id initShader(shader_id shad,const char *vsh, const char *fsh)
+shader_id initShader(shader_id shad, const char *vsh, const char *fsh)
 {
 	shad.compiled = true;
 	shad.vsid = glCreateShaderProgramv(GL_VERTEX_SHADER, 1, &vsh);
@@ -284,21 +284,24 @@ shader_id initShader(shader_id shad,const char *vsh, const char *fsh)
 	glUseProgramStages(shad.pid, GL_FRAGMENT_SHADER_BIT, shad.fsid);
 	int		result;
 	char    info[1536];
-	glGetProgramiv(shad.vsid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.vsid, 1024, NULL, (char *)info); if (!result){ 
-	fprintf(stdout, "[VERTEX SHADER ]: %s\n", info);
-	goto fail; }
-	glGetProgramiv(shad.fsid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.fsid, 1024, NULL, (char *)info); if (!result){ 
-	fprintf(stdout, "[FRAGMENT SHADER ]: %s\n", info);
-	goto fail; }
-	glGetProgramiv(shad.pid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.pid, 1024, NULL, (char *)info); if (!result){ 
-	fprintf(stdout, "[LINK STATUS ]: %s\n", info);
-	goto fail; }
+	glGetProgramiv(shad.vsid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.vsid, 1024, NULL, (char *)info); if (!result) {
+		fprintf(stdout, "[VERTEX SHADER ]: %s\n", info);
+		goto fail;
+	}
+	glGetProgramiv(shad.fsid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.fsid, 1024, NULL, (char *)info); if (!result) {
+		fprintf(stdout, "[FRAGMENT SHADER ]: %s\n", info);
+		goto fail;
+	}
+	glGetProgramiv(shad.pid, GL_LINK_STATUS, &result); glGetProgramInfoLog(shad.pid, 1024, NULL, (char *)info); if (!result) {
+		fprintf(stdout, "[LINK STATUS ]: %s\n", info);
+		goto fail;
+	}
 	glBindProgramPipeline(0);
 	shad.compiled = true;
 	return shad;
 fail:
 	{
-	
+
 		shad.compiled = false;
 		glDeleteProgram(shad.fsid);
 		glDeleteProgram(shad.vsid);
@@ -319,7 +322,7 @@ GLuint init_rendertexture(int resx, int resy)
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, resx, resy, 0, GL_RGBA,GL_UNSIGNED_BYTE, 0);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, resx, resy, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	return texture;
 }
@@ -391,12 +394,12 @@ unsigned char *LoadImageMemory(unsigned char* data, int size, int * width, int *
 				p[0] = tmp;
 				p += 4;
 			}
-		if (data2.Stride == pitch){
+		if (data2.Stride == pitch) {
 			memcpy(pixels, data2.Scan0, pitch * *height);
 		}
-		else{
+		else {
 			for (int i = 0; i < *height; ++i)
-			memcpy(&pixels[i * pitch], &p[i * data2.Stride], pitch);
+				memcpy(&pixels[i * pitch], &p[i * data2.Stride], pitch);
 		}
 		pBitmap->UnlockBits(&data2);
 		//image is now in RGBA
@@ -422,7 +425,7 @@ GLuint loadTexMemory(unsigned char* data2, int size) {
 }
 
 
-void draw(float time, shader_id program, int xres, int yres, GLuint texture){
+void draw(float time, shader_id program, int xres, int yres, GLuint texture) {
 	glBindProgramPipeline(program.pid);
 	glViewport(0, 0, xres, yres);
 	if (texture)
@@ -432,14 +435,14 @@ void draw(float time, shader_id program, int xres, int yres, GLuint texture){
 		glProgramUniform1i(program.fsid, 2, 0);
 	}
 
-	for (int i=0;i<4;i++)
+	for (int i = 0; i < 4; i++)
 	{
 		glActiveTexture(GL_TEXTURE1 + i);
 		glBindTexture(GL_TEXTURE_2D, lookup_tex[i]);
 		TCHAR pathz[MAX_PATH] = { 0 };
 		sprintf(pathz, "tex%d", i);
 		int uniform_loc = glGetUniformLocation(program.fsid, pathz);
-		glProgramUniform1i(program.fsid,uniform_loc , 1+i);
+		glProgramUniform1i(program.fsid, uniform_loc, 1 + i);
 	}
 
 
@@ -451,7 +454,7 @@ void draw(float time, shader_id program, int xres, int yres, GLuint texture){
 		{
 			int uniform_loc = glGetUniformLocation(program.fsid, shaderconfig_map[i].name);
 			glProgramUniform1f(program.fsid, uniform_loc, shaderconfig_map[i].val);
-		}	
+		}
 	}
 	// bind the vao
 	glEnable(GL_BLEND);
@@ -482,92 +485,92 @@ void PezUpdate(unsigned int elapsedMilliseconds) {
 			if (audio_is_playing)sceneTime += elapsedMilliseconds * 0.001;
 			return;
 		}
-		if(!paused)sceneTime += elapsedMilliseconds * 0.001;
+		if (!paused)sceneTime += elapsedMilliseconds * 0.001;
 	}
 }
 
- char* getFileNameFromPath(char* path)
- {
-	 for (size_t i = strlen(path) - 1; i; i--)
-	 {
-		 if (path[i] == '/')
-		 {
-			 return &path[i + 1];
-		 }
-	 }
-	 return path;
- }
+char* getFileNameFromPath(char* path)
+{
+	for (size_t i = strlen(path) - 1; i; i--)
+	{
+		if (path[i] == '/')
+		{
+			return &path[i + 1];
+		}
+	}
+	return path;
+}
 
 
- void compile_raymarchshader(char* path)
- {
-	 if (glIsProgramPipeline(raymarch_shader.pid)) {
-		 glDeleteProgram(raymarch_shader.fsid);
-		 glDeleteProgram(raymarch_shader.vsid);
-		 glBindProgramPipeline(0);
-		 glDeleteProgramPipelines(1, &raymarch_shader.pid);
-	 }
-	 raymarch_shader = { 0 };
-	 raymarch_shader.compiled = false;
-	 size_t sizeout = 0;
-	 char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
-	 if (pix_shader) {
-		 fprintf(stdout, "Compiling raymarch shader.....\n");
-		 raymarch_shader = initShader(raymarch_shader, vertex_source, (const char*)pix_shader);
-		 dr_free_file_data(pix_shader);
-	 }
-	 char *label1 = raymarch_shader.compiled ? "Compiled raymarch shader\n" : "Failed to compile raymarch shader\n";
-	 fprintf(stdout, label1);
- }
+void compile_raymarchshader(char* path)
+{
+	if (glIsProgramPipeline(raymarch_shader.pid)) {
+		glDeleteProgram(raymarch_shader.fsid);
+		glDeleteProgram(raymarch_shader.vsid);
+		glBindProgramPipeline(0);
+		glDeleteProgramPipelines(1, &raymarch_shader.pid);
+	}
+	raymarch_shader = { 0 };
+	raymarch_shader.compiled = false;
+	size_t sizeout = 0;
+	char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
+	if (pix_shader) {
+		fprintf(stdout, "Compiling raymarch shader.....\n");
+		raymarch_shader = initShader(raymarch_shader, vertex_source, (const char*)pix_shader);
+		dr_free_file_data(pix_shader);
+	}
+	char *label1 = raymarch_shader.compiled ? "Compiled raymarch shader\n" : "Failed to compile raymarch shader\n";
+	fprintf(stdout, label1);
+}
 
- void compile_ppshader(char* path)
- {
-	 if (glIsProgramPipeline(post_shader.pid)) {
-		 glDeleteProgram(post_shader.fsid);
-		 glDeleteProgram(post_shader.vsid);
-		 glBindProgramPipeline(0);
-		 glDeleteProgramPipelines(1, &post_shader.pid);
-	 }
-	 post_shader = { 0 };
-	 post_shader.compiled = false;
-	 size_t sizeout = 0;
-	 char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
-	 if (pix_shader) {
-		 fprintf(stdout, "Compiling post-process shader.....\n");
-		 post_shader = initShader(post_shader, vertex_source, (const char*)pix_shader);
-		 dr_free_file_data(pix_shader);
-	 }
-	 char *label1 = post_shader.compiled ? "Compiled post-process shader\n" : "Failed to compile post-process shader\n";
-	 fprintf(stdout, label1);
- }
+void compile_ppshader(char* path)
+{
+	if (glIsProgramPipeline(post_shader.pid)) {
+		glDeleteProgram(post_shader.fsid);
+		glDeleteProgram(post_shader.vsid);
+		glBindProgramPipeline(0);
+		glDeleteProgramPipelines(1, &post_shader.pid);
+	}
+	post_shader = { 0 };
+	post_shader.compiled = false;
+	size_t sizeout = 0;
+	char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
+	if (pix_shader) {
+		fprintf(stdout, "Compiling post-process shader.....\n");
+		post_shader = initShader(post_shader, vertex_source, (const char*)pix_shader);
+		dr_free_file_data(pix_shader);
+	}
+	char *label1 = post_shader.compiled ? "Compiled post-process shader\n" : "Failed to compile post-process shader\n";
+	fprintf(stdout, label1);
+}
 
- void recompile_shader(char* path)
- {
-	 if (strcmp(getFileNameFromPath(path), "raymarch.glsl") == 0)
-	 {
+void recompile_shader(char* path)
+{
+	if (strcmp(getFileNameFromPath(path), "raymarch.glsl") == 0)
+	{
 		static unsigned long last_shaderload = 0;
 		unsigned long load = timeGetTime();
-		 if (load-last_shaderload > 200) { //take into account actual shader recompile time
-			 Sleep(100);
-			 compile_raymarchshader(path);
-			
-		 }
-		 last_shaderload = timeGetTime();
-	 }
-	 if (strcmp(getFileNameFromPath(path), "post.glsl") == 0)
-	 {
-		 static unsigned long last_shaderload = 0;
-		 unsigned long load = timeGetTime();
-		 if (load - last_shaderload > 200) { //take into account actual shader recompile time
-			 Sleep(100);
-			 compile_ppshader(path);
-		 }
-		 last_shaderload = timeGetTime();
-	 }
+		if (load - last_shaderload > 200) { //take into account actual shader recompile time
+			Sleep(100);
+			compile_raymarchshader(path);
+
+		}
+		last_shaderload = timeGetTime();
+	}
+	if (strcmp(getFileNameFromPath(path), "post.glsl") == 0)
+	{
+		static unsigned long last_shaderload = 0;
+		unsigned long load = timeGetTime();
+		if (load - last_shaderload > 200) { //take into account actual shader recompile time
+			Sleep(100);
+			compile_ppshader(path);
+		}
+		last_shaderload = timeGetTime();
+	}
 	shaderconfig_map.clear();
 	if (raymarch_shader.compiled)glsl_to_config(raymarch_shader, "raymarch.glsl", false);
 	if (post_shader.compiled)glsl_to_config(post_shader, "post.glsl", true);
- }
+}
 
 char *get_file(void) {
 	OPENFILENAME    ofn;
@@ -590,7 +593,7 @@ char *get_file(void) {
 
 void gui()
 {
-	static double time=0;
+	static double time = 0;
 	if (ctx)
 	{
 		if (nk_begin(ctx, "Controls", nk_rect(30, 520, 530, 160),
@@ -604,7 +607,7 @@ void gui()
 				if (file)
 				{
 					if (BASS_ChannelIsActive(music_stream) != BASS_ACTIVE_STOPPED)	BASS_StreamFree(music_stream);
-					if (music_stream = BASS_StreamCreateFile(FALSE, file, 0, 0,0))
+					if (music_stream = BASS_StreamCreateFile(FALSE, file, 0, 0, 0))
 					{
 						QWORD len = BASS_ChannelGetLength(music_stream, BASS_POS_BYTE); // the length in bytes
 						time = BASS_ChannelBytes2Seconds(music_stream, len);
@@ -630,12 +633,12 @@ void gui()
 				else
 				{
 					paused = !paused;
-					BASS_ChannelPlay(music_stream,FALSE);
+					BASS_ChannelPlay(music_stream, FALSE);
 				}
 			}
 			if (nk_button_label(ctx, "Rewind"))
 			{
-				BASS_ChannelSetPosition(music_stream,0,BASS_POS_INEXACT);
+				BASS_ChannelSetPosition(music_stream, 0, BASS_POS_INEXACT);
 				sceneTime = 0;
 			}
 			if (nk_button_label(ctx, "Clear console"))
@@ -646,7 +649,7 @@ void gui()
 			{
 				nk_layout_row_dynamic(ctx, 25, 1);
 				char label1[100] = { 0 };
-				sprintf(label1, "Progress: %.2f / %.2f seconds", sceneTime,time);
+				sprintf(label1, "Progress: %.2f / %.2f seconds", sceneTime, time);
 				nk_label(ctx, label1, NK_TEXT_LEFT);
 				nk_layout_row_static(ctx, 30, 500, 2);
 
@@ -675,7 +678,7 @@ void gui()
 
 		int sz1 = shaderconfig_map.size() * 30 * 3;
 		int sz = sz1 + 96;
-		if (nk_begin(ctx, "Uniforms", nk_rect(900, 30, 300,sz),
+		if (nk_begin(ctx, "Uniforms", nk_rect(900, 30, 300, sz),
 			NK_WINDOW_BORDER | NK_WINDOW_MOVABLE |
 			NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
 		{
@@ -690,14 +693,14 @@ void gui()
 					nk_slider_float(ctx, shaderconfig_map[i].min, &shaderconfig_map[i].val, shaderconfig_map[i].max, shaderconfig_map[i].inc);
 				}
 			}
-				struct nk_command_buffer* canvas = nk_window_get_canvas(ctx);
-				struct nk_vec2 totalSpace = nk_window_get_position(ctx);
-				const struct nk_color gridColor = nk_rgba(255, 255, 255, 255);
-				for (int i = 0; i < 4; i++)
-				{
+			struct nk_command_buffer* canvas = nk_window_get_canvas(ctx);
+			struct nk_vec2 totalSpace = nk_window_get_position(ctx);
+			const struct nk_color gridColor = nk_rgba(255, 255, 255, 255);
+			for (int i = 0; i < 4; i++)
+			{
 				struct nk_image myImage = nk_image_id((int)lookup_tex[i]);
-				nk_draw_image(canvas, nk_rect(totalSpace.x + (75 * i),sz1+ totalSpace.y, 64, 64), &myImage, gridColor);
-			    }
+				nk_draw_image(canvas, nk_rect(totalSpace.x + (75 * i), sz1 + totalSpace.y, 64, 64), &myImage, gridColor);
+			}
 		}
 		nk_end(ctx);
 	}
@@ -716,19 +719,19 @@ void PezRender()
 	}
 	glClear(GL_COLOR_BUFFER_BIT);
 	glClearColor(0, 0, 0, 0.0);
-	
+
 	if (seek)sceneTime = floor(sceneTime);
-	
+
 	update_rocket();
 
 	if (post_shader.compiled)
 	{
-	glBindFramebuffer(GL_FRAMEBUFFER, render_fbo.fbo);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glClearColor(0.0, 0.0, 0.0, 1.0f);
-	if (raymarch_shader.compiled) draw(sceneTime, raymarch_shader,render_width,render_height,NULL);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	draw(sceneTime, post_shader, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT, render_fbo.texture);
+		glBindFramebuffer(GL_FRAMEBUFFER, render_fbo.fbo);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glClearColor(0.0, 0.0, 0.0, 1.0f);
+		if (raymarch_shader.compiled) draw(sceneTime, raymarch_shader, render_width, render_height, NULL);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		draw(sceneTime, post_shader, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT, render_fbo.texture);
 	}
 	else
 	{
@@ -742,9 +745,9 @@ void PezRender()
 
 
 #include <sys/stat.h>
-unsigned char *readFile(const char *fileName, int * size,bool text=false)
+unsigned char *readFile(const char *fileName, int * size, bool text = false)
 {
-	FILE *file = fopen(fileName, text?"r":"rb");
+	FILE *file = fopen(fileName, text ? "r" : "rb");
 	if (file == NULL)
 	{
 		MessageBox(NULL, "Cannot open shader file!", "ERROR",
@@ -756,7 +759,7 @@ unsigned char *readFile(const char *fileName, int * size,bool text=false)
 	fseek(file, 0, SEEK_SET);   // non-portable
 	unsigned char *buffer = new unsigned char[size2];
 	*size = fread(buffer, 1, size2, file);
-	if(text)buffer[size2] = 0;
+	if (text)buffer[size2] = 0;
 	fclose(file);
 	return buffer;
 }
@@ -781,8 +784,8 @@ const char* PezInitialize(int width, int height)
 	for (int i = 0; i < 4; i++)
 	{
 		TCHAR pathz[MAX_PATH] = { 0 };
-		wsprintf(pathz, "LUT/%s",lut_files[i]);
-		int size=0,width=0,height=0;
+		wsprintf(pathz, "LUT/%s", lut_files[i]);
+		int size = 0, width = 0, height = 0;
 		unsigned char *data = readFile(pathz, &size);
 		lookup_tex[i] = loadTexMemory(data, size);
 		free(data);
@@ -806,5 +809,5 @@ const char* PezInitialize(int width, int height)
 	if (raymarch_shader.compiled)glsl_to_config(raymarch_shader, "raymarch.glsl", false);
 	if (post_shader.compiled)glsl_to_config(post_shader, "post.glsl", true);
 	render_fbo = init_fbo(render_width, render_height, false);
-    return "Shader Lathe v0.3";
+	return "Shader Lathe v0.3";
 }
