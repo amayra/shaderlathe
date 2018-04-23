@@ -24,11 +24,10 @@
 #include <windows.h>
 #include <fcntl.h>
 #include <io.h>
-
 #include <objidl.h>
 #include <gdiplus.h>
-using namespace Gdiplus;
 
+using namespace Gdiplus;
 using namespace std;
 #define MAX_VERTEX_BUFFER 512 * 1024
 #define MAX_ELEMENT_BUFFER 128 * 1024
@@ -132,17 +131,12 @@ int ms_to_row_round(int time_ms, float rps)
 static void xpause(void* data, int flag)
 {
 	(void)data;
-	if (flag)
-	{
-		BASS_ChannelPause(music_stream);
-		audio_is_playing = 0;
-	}
+	audio_is_playing = flag ? 1 : 0;
 
+	if (flag)
+		BASS_ChannelPause(music_stream);
 	else
-	{
-		audio_is_playing = 1;
 		BASS_ChannelPlay(music_stream, false);
-	}
 }
 
 static void xset_row(void* data, int row)
@@ -203,7 +197,6 @@ void update_rocket()
 				}
 			}
 		}
-
 	}
 }
 
@@ -301,7 +294,6 @@ shader_id initShader(shader_id shad, const char *vsh, const char *fsh)
 	return shad;
 fail:
 	{
-
 		shad.compiled = false;
 		glDeleteProgram(shad.fsid);
 		glDeleteProgram(shad.vsid);
@@ -346,7 +338,6 @@ FBOELEM init_fbo(int width, int height, bool fp)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexImage2D(GL_TEXTURE_2D, 0, fp ? GL_RGB32F : GL_RGBA8, width, height, 0, GL_RGBA, fp ? GL_FLOAT : GL_UNSIGNED_BYTE, NULL);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, elem.texture, 0);
-
 	// check if everything was ok with our requests above.
 	error = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	if (error != GL_FRAMEBUFFER_COMPLETE) {
@@ -387,7 +378,6 @@ unsigned char *LoadImageMemory(unsigned char* data, int size, int * width, int *
 			free(pixels);
 			return 0;
 		}
-			
 		//ARGB to RGBA
 		uint8_t *p = static_cast<uint8_t *>(data2.Scan0);
 		for (int y = 0; y < *height; y++)
@@ -428,7 +418,6 @@ GLuint loadTexMemory(unsigned char* data2, int size) {
 	return tex;
 }
 
-
 void draw(float time, shader_id program, int xres, int yres, GLuint texture) {
 	glBindProgramPipeline(program.pid);
 	glViewport(0, 0, xres, yres);
@@ -438,7 +427,6 @@ void draw(float time, shader_id program, int xres, int yres, GLuint texture) {
 		glBindTexture(GL_TEXTURE_2D, texture);
 		glProgramUniform1i(program.fsid, 2, 0);
 	}
-
 	for (int i = 0; i < 4; i++)
 	{
 		glActiveTexture(GL_TEXTURE1 + i);
@@ -448,8 +436,6 @@ void draw(float time, shader_id program, int xres, int yres, GLuint texture) {
 		int uniform_loc = glGetUniformLocation(program.fsid, pathz);
 		glProgramUniform1i(program.fsid, uniform_loc, 1 + i);
 	}
-
-
 	float fparams[4] = { xres, yres, time, 0.0 };
 	glProgramUniform4fv(program.fsid, 1, 1, fparams);
 	for (int i = 0; i < shaderconfig_map.size(); i++)
@@ -486,10 +472,12 @@ void PezUpdate(unsigned int elapsedMilliseconds) {
 	{
 		if (rocket_connected)
 		{
-			if (audio_is_playing)sceneTime += elapsedMilliseconds * 0.001;
+			if (audio_is_playing)
+				sceneTime += elapsedMilliseconds * 0.001;
 			return;
 		}
-		if (!paused)sceneTime += elapsedMilliseconds * 0.001;
+		if (!paused)
+			sceneTime += elapsedMilliseconds * 0.001;
 	}
 }
 
@@ -557,7 +545,6 @@ void recompile_shader(char* path)
 		if (load - last_shaderload > 200) { //take into account actual shader recompile time
 			Sleep(100);
 			compile_raymarchshader(path);
-
 		}
 		last_shaderload = timeGetTime();
 	}
@@ -624,8 +611,6 @@ void gui()
 					if (BASS_ChannelIsActive(music_stream) != BASS_ACTIVE_STOPPED)BASS_StreamFree(music_stream);
 				}
 			}
-
-
 			char *label1 = paused ? "Resume" : "Pause";
 			if (nk_button_label(ctx, label1))
 			{
@@ -698,12 +683,12 @@ void gui()
 				}
 			}
 			struct nk_command_buffer* canvas = nk_window_get_canvas(ctx);
-			struct nk_vec2 totalSpace = nk_window_get_position(ctx);
+			struct nk_vec2 cvbounds = nk_window_get_position(ctx);
 			const struct nk_color gridColor = nk_rgba(255, 255, 255, 255);
 			for (int i = 0; i < 4; i++)
 			{
 				struct nk_image myImage = nk_image_id((int)lookup_tex[i]);
-				nk_draw_image(canvas, nk_rect(totalSpace.x + (75 * i), sz1 + totalSpace.y, 64, 64), &myImage, gridColor);
+				nk_draw_image(canvas, nk_rect(cvbounds.x + (75 * i), sz1 + cvbounds.y, 64, 64), &myImage, gridColor);
 			}
 		}
 		nk_end(ctx);
@@ -723,17 +708,15 @@ void PezRender()
 	}
 	glClear(GL_COLOR_BUFFER_BIT);
 	glClearColor(0, 0, 0, 0.0);
-
 	if (seek)sceneTime = floor(sceneTime);
-
 	update_rocket();
-
 	if (post_shader.compiled)
 	{
 		glBindFramebuffer(GL_FRAMEBUFFER, render_fbo.fbo);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glClearColor(0.0, 0.0, 0.0, 1.0f);
-		if (raymarch_shader.compiled) draw(sceneTime, raymarch_shader, render_width, render_height, NULL);
+		if (raymarch_shader.compiled) 
+			draw(sceneTime, raymarch_shader, render_width, render_height, NULL);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		draw(sceneTime, post_shader, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT, render_fbo.texture);
 	}
@@ -741,7 +724,8 @@ void PezRender()
 	{
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glClearColor(0.0, 0.0, 0.0, 1.0f);
-		if (raymarch_shader.compiled) draw(sceneTime, raymarch_shader, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT, NULL);
+		if (raymarch_shader.compiled) 
+			draw(sceneTime, raymarch_shader, PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT, NULL);
 	}
 	gui();
 	nk_pez_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
@@ -763,11 +747,11 @@ unsigned char *readFile(const char *fileName, int * size, bool text = false)
 	fseek(file, 0, SEEK_SET);   // non-portable
 	unsigned char *buffer = new unsigned char[size2];
 	*size = fread(buffer, 1, size2, file);
-	if (text)buffer[size2] = 0;
+	if (text)
+		buffer[size2] = 0;
 	fclose(file);
 	return buffer;
 }
-
 
 TCHAR* lut_files[]
 {
@@ -783,7 +767,6 @@ const char* PezInitialize(int width, int height)
 	ULONG_PTR           gdiplusToken;
 	// Initialize GDI+.
 	GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
-
 
 	for (int i = 0; i < 4; i++)
 	{
@@ -809,8 +792,10 @@ const char* PezInitialize(int width, int height)
 	compile_raymarchshader("raymarch.glsl");
 	compile_ppshader("post.glsl");
 	shaderconfig_map.clear();
-	if (raymarch_shader.compiled)glsl_to_config(raymarch_shader, "raymarch.glsl", false);
-	if (post_shader.compiled)glsl_to_config(post_shader, "post.glsl", true);
+	if (raymarch_shader.compiled)
+		glsl_to_config(raymarch_shader, "raymarch.glsl", false);
+	if (post_shader.compiled)
+		glsl_to_config(post_shader, "post.glsl", true);
 	render_fbo = init_fbo(render_width, render_height, false);
-	return "Shader Lathe v0.3";
+	return "Shader Lathe v0.4";
 }
