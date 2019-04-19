@@ -108,7 +108,7 @@ const char vertex_source_fbo[] =
 "	gl_Position = vec4(x, -y, 0, 1);"
 "}";
 
-#include <sys/stat.h>
+
 unsigned char* readFile(const char* fileName, int* size, bool text = false)
 {
 	FILE* file = fopen(fileName, text ? "r" : "rb");
@@ -793,8 +793,10 @@ const char* PezInitialize(int width, int height)
     rocket_connected = rocket_init("rocket");
     context = drfsw_create_context();
     TCHAR path[512] = { 0 };
-    dr_get_executable_directory_path(path, sizeof(path));
-    dr_set_current_directory(path);
+
+	HMODULE hModule = GetModuleHandleW(NULL);
+	GetModuleFileNameA(hModule, path, MAX_PATH);
+	SetCurrentDirectoryA(path);
     drfsw_add_directory(context, path);
     compile_raymarchshader("raymarch.glsl");
     compile_ppshader("post.glsl");
