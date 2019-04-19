@@ -2,8 +2,6 @@
 #include "3rdparty/gl3w.h"
 #define DR_FSW_IMPLEMENTATION
 #include "3rdparty/dr_fsw.h"
-#define DR_IMPLEMENTATION
-#include "3rdparty/dr.h"
 #include "3rdparty/nuklear.h"
 #include "3rdparty/nuklear_pez_gl3.h"
 #include "3rdparty/bass.h"
@@ -109,6 +107,30 @@ const char vertex_source_fbo[] =
 "	ftexcoord.y = (y + 1.0)*0.5;"
 "	gl_Position = vec4(x, -y, 0, 1);"
 "}";
+
+#include <sys/stat.h>
+unsigned char* readFile(const char* fileName, int* size, bool text = false)
+{
+	FILE* file = fopen(fileName, text ? "r" : "rb");
+	if (file == NULL)
+	{
+		MessageBox(NULL, "Cannot open shader file!", "ERROR",
+			MB_OK | MB_ICONEXCLAMATION);
+		return 0;
+	}
+	fseek(file, 0, SEEK_END);   // non-portable
+	int size2 = ftell(file);
+	rewind(file);
+	unsigned char* buffer = NULL;
+	buffer = (unsigned char*)malloc(text ? sizeof(unsigned char) * (size2 + 1): size2);
+	memset(buffer,0, text ? sizeof(unsigned char) * (size2 + 1) : size2);
+	*size = fread(buffer, 1, size2, file);
+	if (text) buffer[size2] = '\0';
+	fclose(file);
+	return buffer;
+}
+
+
 int row_to_ms_round(int row, float rps)
 {
     const float newtime = ((float)(row)) / rps;
@@ -504,12 +526,12 @@ void compile_raymarchshader(char* path)
     raymarch_shader = { 0 };
     raymarch_shader.compiled = false;
     size_t sizeout = 0;
-    char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
-    if (pix_shader) {
-        fprintf(stdout, "Compiling raymarch shader.....\n");
-        raymarch_shader = initShader(raymarch_shader, vertex_source, (const char*)pix_shader);
-        dr_free_file_data(pix_shader);
-    }
+	unsigned char* pix_shader = readFile(path, (int*)& sizeout, true);
+	if (pix_shader) {
+		printf("Compiling post-process shader.....\n");
+		raymarch_shader = initShader(raymarch_shader, vertex_source, (const char*)pix_shader);
+		free(pix_shader);
+	}
     char *label1 = raymarch_shader.compiled ? "Compiled raymarch shader\n" : "Failed to compile raymarch shader\n";
     printf("%s", label1);
 }
@@ -525,11 +547,11 @@ void compile_ppshader(char* path)
     post_shader = { 0 };
     post_shader.compiled = false;
     size_t sizeout = 0;
-    char* pix_shader = dr_open_and_read_text_file(path, &sizeout);
+	unsigned char* pix_shader = readFile(path, (int*)&sizeout,true);
     if (pix_shader) {
         printf("Compiling post-process shader.....\n");
         post_shader = initShader(post_shader, vertex_source, (const char*)pix_shader);
-        dr_free_file_data(pix_shader);
+		free(pix_shader);
     }
     char *label1 = post_shader.compiled ? "Compiled post-process shader\n" : "Failed to compile post-process shader\n";
     printf("%s", label1);
@@ -734,25 +756,7 @@ void PezRender()
 }
 
 
-#include <sys/stat.h>
-unsigned char *readFile(const char *fileName, int * size, bool text = false)
-{
-    FILE *file = fopen(fileName, text ? "r" : "rb");
-    if (file == NULL)
-    {
-        MessageBox(NULL, "Cannot open shader file!", "ERROR",
-            MB_OK | MB_ICONEXCLAMATION);
-        return 0;
-    }
-    fseek(file, 0, SEEK_END);   // non-portable
-    int size2 = ftell(file);
-    rewind(file); 
-    unsigned char *buffer = new unsigned char[size2];
-    *size = fread(buffer, 1, size2, file);
-    if (text)buffer[size2] = 0;
-    fclose(file);
-    return buffer;
-}
+
 
 TCHAR* lut_files[]
 {
@@ -776,7 +780,7 @@ const char* PezInitialize(int width, int height)
         int size = 0, width = 0, height = 0;
         unsigned char *data = readFile(pathz, &size);
         lookup_tex[i] = loadTexMemory(data, size);
-        delete[]data;
+		free(data);
     }
 
     AllocConsole();
@@ -795,10 +799,16 @@ const char* PezInitialize(int width, int height)
     compile_raymarchshader("raymarch.glsl");
     compile_ppshader("post.glsl");
     shaderconfig_map.clear();
-    if (raymarch_shader.compiled)
-        glsl_to_config(raymarch_shader, "raymarch.glsl", false);
-    if (post_shader.compiled)
-        glsl_to_config(post_shader, "post.glsl", true);
+	if (raymarch_shader.compiled)
+	{
+		glsl_to_config(raymarch_shader, "raymarch.glsl", false);
+	}
+       
+	if (post_shader.compiled)
+	{
+		glsl_to_config(post_shader, "post.glsl", true);
+	}
+        
     render_fbo = init_fbo(render_width, render_height, false);
     return "Shader Lathe v0.4";
 }
