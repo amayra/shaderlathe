@@ -227,12 +227,11 @@ void glsl_to_config(shader_id prog, char *shader_path, bool ispostproc)
 {
     vector<string>lines;
     lines.clear();
-    ifstream openFile(shader_path);
+    stringstream openFile(shader_path);
     string stringToStore; //string to store file line
     while (getline(openFile, stringToStore)) { //checking for existence of file
         lines.push_back(stringToStore);
     }
-    openFile.close(); //closes file after done
     //convert GLSL uniforms to variables
     int total = -1;
     glGetProgramiv(prog.fsid, GL_ACTIVE_UNIFORMS, &total);
@@ -789,26 +788,28 @@ const char* PezInitialize(int width, int height)
     BASS_Init(-1, 44100, 0, NULL, NULL);
     glGenVertexArrays(1, &scene_vao);
 
-
     rocket_connected = rocket_init("rocket");
     context = drfsw_create_context();
     TCHAR path[512] = { 0 };
-
-	HMODULE hModule = GetModuleHandleW(NULL);
-	GetModuleFileNameA(hModule, path, MAX_PATH);
-	SetCurrentDirectoryA(path);
+	GetCurrentDirectoryA(512,path);
     drfsw_add_directory(context, path);
     compile_raymarchshader("raymarch.glsl");
     compile_ppshader("post.glsl");
     shaderconfig_map.clear();
 	if (raymarch_shader.compiled)
 	{
-		glsl_to_config(raymarch_shader, "raymarch.glsl", false);
+		int size = 0;
+		unsigned char* data = readFile("raymarch.glsl", &size,true);
+		glsl_to_config(raymarch_shader, (char*)data, false);
+		free(data);
 	}
        
 	if (post_shader.compiled)
 	{
-		glsl_to_config(post_shader, "post.glsl", true);
+		int size = 0;
+		unsigned char* data = readFile("post.glsl", &size, true);
+		glsl_to_config(post_shader, (char*)data, true);
+		free(data);
 	}
         
     render_fbo = init_fbo(render_width, render_height, false);
