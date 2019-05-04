@@ -78,6 +78,7 @@ layout(location = 2) uniform sampler2D tex;
 in vec2 ftexcoord;
 
 uniform float sepia_level;//0.00 1.00 0.01
+uniform float fuck_level;//0.00 1.00 0.01
 
 float xres = parameters.x;
 float yres = parameters.y;
@@ -97,6 +98,6 @@ void main(void)
 {
 	vec4 color =  texture(tex, ftexcoord);
 
-	vec4 sep_col = mix(color, Sepia(color), clamp(sepia_level,0.0,1.0) );
+	vec4 sep_col = mix(color, Sepia(color), clamp(sepia_level-fuck_level,0.0,1.0) );
 	out_color = vec4(sep_col.rgb, 1.0);
 }

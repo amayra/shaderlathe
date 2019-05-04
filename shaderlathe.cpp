@@ -64,19 +64,6 @@ FBOELEM render_fbo;
 #define render_width 1920
 #define render_height 1080
 
-NK_API int nk_tab(struct nk_context *ctx, const char *title, int active)
-{
-	const struct nk_user_font *f = ctx->style.font;
-	float text_width = f->width(f->userdata, f->height, title, nk_strlen(title));
-	float widget_width = text_width + 3 * ctx->style.button.padding.x;
-	nk_layout_row_push(ctx, widget_width);
-	struct nk_style_item c = ctx->style.button.normal;
-	if (active) { ctx->style.button.normal = ctx->style.button.active; }
-	int r = nk_button_label(ctx, title);
-	ctx->style.button.normal = c;
-	return r;
-}
-
 static struct sync_device *device = NULL;
 #if !defined(SYNC_PLAYER)
 static struct sync_cb cb;
@@ -784,10 +771,10 @@ void gui()
         //uniform widget
         int sz1 = shaderconfig_map.size() * 30 * 3;
         int sz = sz1 + 96;
-        if (nk_begin(ctx, "Uniforms", nk_rect(900, 30, 300, sz),
-            NK_WINDOW_BORDER | NK_WINDOW_MOVABLE |
-            NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
-        {
+		if (nk_begin(ctx, "Uniforms", nk_rect(900, 30, 300, sz),
+			NK_WINDOW_BORDER | NK_WINDOW_MOVABLE |
+			NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
+		{
 			enum {
 				TAB1,
 				TAB2
@@ -796,33 +783,36 @@ void gui()
 			nk_layout_row_dynamic(ctx, 20, 2);
 			if (nk_option_label(ctx, "Raymarch", state == TAB1)) { state = TAB1; }
 			if (nk_option_label(ctx, "Post-process", state == TAB2)) { state = TAB2; }
+			if (state == TAB1)
+			{
+				for (int i = 0; i < shaderconfig_map.size(); i++) {
+					if (strstr(shaderconfig_map[i].name, "_rkt") == NULL) {
 
-            for (int i = 0; i < shaderconfig_map.size(); i++) {
-                if (strstr(shaderconfig_map[i].name, "_rkt") == NULL) {
-					if (state == TAB1)
-					{
 						if (!shaderconfig_map[i].ispost)
 						{
 							char label1[100] = { 0 };
 							char *shader_type = "%s: %.2f";
 							sprintf(label1, shader_type, shaderconfig_map[i].name, shaderconfig_map[i].val);
+							nk_layout_row_dynamic(ctx, 25, 1);
 							nk_label(ctx, label1, NK_TEXT_LEFT);
 							nk_layout_row_static(ctx, 30, 250, 2);
 							nk_slider_float(ctx, shaderconfig_map[i].min, &shaderconfig_map[i].val, shaderconfig_map[i].max, shaderconfig_map[i].inc);
 						}
 					}
-					
-                }
-            }
 
-			for (int i = 0; i < shaderconfig_map.size(); i++) {
-				if (strstr(shaderconfig_map[i].name, "_rkt") == NULL) {
-					if (state == TAB2)
-					{
+				}
+			}
+
+			if (state == TAB2)
+			{
+				for (int i = 0; i < shaderconfig_map.size(); i++) {
+					if (strstr(shaderconfig_map[i].name, "_rkt") == NULL) {
+
 						if (shaderconfig_map[i].ispost)
 						{
 							char label1[100] = { 0 };
 							sprintf(label1, "%s: %.2f", shaderconfig_map[i].name, shaderconfig_map[i].val);
+							nk_layout_row_dynamic(ctx, 25, 1);
 							nk_label(ctx, label1, NK_TEXT_LEFT);
 							nk_layout_row_static(ctx, 30, 250, 2);
 							nk_slider_float(ctx, shaderconfig_map[i].min, &shaderconfig_map[i].val, shaderconfig_map[i].max, shaderconfig_map[i].inc);
