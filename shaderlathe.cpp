@@ -108,6 +108,28 @@ const char vertex_source_fbo[] =
 "	gl_Position = vec4(x, -y, 0, 1);"
 "}";
 
+uint32_t crc32(const void* data, unsigned int length)
+{
+	static const uint32_t crc32tab[16] = {
+	0x00000000, 0x1DB71064, 0x3B6E20C8, 0x26D930AC, 0x76DC4190,
+	0x6B6B51F4, 0x4DB26158, 0x5005713C, 0xEDB88320, 0xF00F9344,
+	0xD6D6A3E8, 0xCB61B38C, 0x9B64C2B0, 0x86D3D2D4, 0xA00AE278,
+	0xBDBDF21C
+	};
+	uint8_t* buf = (uint8_t*)data;
+	uint32_t crc = 0xFFFFFFFF;
+	uint32_t i;
+	if (length == 0) {
+		return 0;
+	}
+	for (i = 0; i < length; ++i) {
+		crc ^= buf[i];
+		crc = crc32tab[crc & 0x0F] ^ (crc >> 4);
+		crc = crc32tab[crc & 0x0F] ^ (crc >> 4);
+	}
+	return crc ^ 0xFFFFFFFF;
+}
+
 
 unsigned char* readFile(const char* fileName, int* size, bool text = false)
 {
@@ -121,8 +143,12 @@ unsigned char* readFile(const char* fileName, int* size, bool text = false)
 	fseek(file, 0, SEEK_END);   // non-portable
 	int size2 = ftell(file);
 	rewind(file);
-	unsigned char* buffer = NULL;
-	buffer = (unsigned char*)malloc(text ? sizeof(unsigned char) * (size2 + 1): size2);
+	unsigned char* buffer = (unsigned char*)malloc(text ? sizeof(unsigned char) * (size2 + 1): size2);
+	if (!buffer)
+	{
+		fclose(file);
+		return NULL;
+	}
 	memset(buffer,0, text ? sizeof(unsigned char) * (size2 + 1) : size2);
 	*size = fread(buffer, 1, size2, file);
 	if (text) buffer[size2] = '\0';
@@ -223,15 +249,28 @@ void update_rocket()
     }
 }
 
-void glsl_to_config(shader_id prog, char *shader_path, bool ispostproc)
+void glsl_to_config(shader_id prog, char *shader_path, char* shad_token)
 {
     vector<string>lines;
     lines.clear();
     stringstream openFile(shader_path);
     string stringToStore; //string to store file line
-    while (getline(openFile, stringToStore)) { //checking for existence of file
-        lines.push_back(stringToStore);
-    }
+	bool inshader = false;
+	bool ispostproc = false;
+	while (getline(openFile, stringToStore)) {
+			if (stringToStore == shad_token)
+			{
+				if (stringToStore.find("POST") != std::string::npos)ispostproc = true;
+				inshader = true;
+				continue;
+			}
+			if (inshader)
+			{
+				if (stringToStore.find("shader_id") != std::string::npos)break;
+				lines.push_back(stringToStore);
+			}
+	}
+
     //convert GLSL uniforms to variables
     int total = -1;
     glGetProgramiv(prog.fsid, GL_ACTIVE_UNIFORMS, &total);
@@ -426,8 +465,8 @@ unsigned char *LoadImageMemory(unsigned char* data, int size, int * width, int *
 }
 
 GLuint loadTexMemory(unsigned char* data2, int size) {
-    int x, y, n;
-    GLuint tex;
+    int x, y;
+    GLuint tex = 0;
     unsigned char *data = LoadImageMemory(data2, size, &x, &y);
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_2D, tex);
@@ -514,75 +553,117 @@ char* getFileNameFromPath(char* path)
     return path;
 }
 
-void compile_raymarchshader(char* path)
+void delete_shaderblock(shader_id shader)
 {
-    if (glIsProgramPipeline(raymarch_shader.pid)) {
-        glDeleteProgram(raymarch_shader.fsid);
-        glDeleteProgram(raymarch_shader.vsid);
-        glBindProgramPipeline(0);
-        glDeleteProgramPipelines(1, &raymarch_shader.pid);
-    }
-    raymarch_shader = { 0 };
-    raymarch_shader.compiled = false;
-    size_t sizeout = 0;
-	unsigned char* pix_shader = readFile(path, (int*)& sizeout, true);
-	if (pix_shader) {
-		printf("Compiling post-process shader.....\n");
-		raymarch_shader = initShader(raymarch_shader, vertex_source, (const char*)pix_shader);
-		free(pix_shader);
+	if (glIsProgramPipeline(shader.pid)) {
+		glDeleteProgram(shader.fsid);
+		glDeleteProgram(shader.vsid);
+		glBindProgramPipeline(0);
+		glDeleteProgramPipelines(1, &shader.pid);
 	}
-    char *label1 = raymarch_shader.compiled ? "Compiled raymarch shader\n" : "Failed to compile raymarch shader\n";
-    printf("%s", label1);
 }
 
-void compile_ppshader(char* path)
+
+shader_id compile_shaderblock(char *shader_path, const char* shad_token)
 {
-    if (glIsProgramPipeline(post_shader.pid)) {
-        glDeleteProgram(post_shader.fsid);
-        glDeleteProgram(post_shader.vsid);
-        glBindProgramPipeline(0);
-        glDeleteProgramPipelines(1, &post_shader.pid);
-    }
-    post_shader = { 0 };
-    post_shader.compiled = false;
-    size_t sizeout = 0;
-	unsigned char* pix_shader = readFile(path, (int*)&sizeout,true);
-    if (pix_shader) {
-        printf("Compiling post-process shader.....\n");
-        post_shader = initShader(post_shader, vertex_source, (const char*)pix_shader);
+	shader_id shad = { 0 };
+	shad.compiled = false;
+	size_t sizeout = 0;
+	unsigned char* pix_shader = readFile(shader_path, (int*)& sizeout, true);
+	if (pix_shader) {
+		string shader_code;
+		stringstream openFile((char*)pix_shader);
 		free(pix_shader);
-    }
-    char *label1 = post_shader.compiled ? "Compiled post-process shader\n" : "Failed to compile post-process shader\n";
-    printf("%s", label1);
+		bool inshader = false;
+		string stringToStore;
+		while (getline(openFile, stringToStore)) {
+			if (stringToStore == shad_token)
+			{
+				inshader = true;
+				continue;
+			}
+			if (inshader)
+			{
+				if(stringToStore.find("shader_id") != std::string::npos)break;
+				shader_code += stringToStore;
+				shader_code += "\n";
+			}
+		}
+		return initShader(shad, vertex_source, (const char*)shader_code.c_str());
+	}
+	return shad;
+}
+
+uint32_t get_shaderblockcrc(char *shader_path, const char* shad_token)
+{
+	size_t sizeout = 0;
+	unsigned char* pix_shader = readFile(shader_path, (int*)& sizeout, true);
+	if (pix_shader) {
+		string shader_code;
+		stringstream openFile((char*)pix_shader);
+		free(pix_shader);
+		bool inshader = false;
+		string stringToStore;
+		while (getline(openFile, stringToStore)) {
+			if (stringToStore == shad_token)
+			{
+				inshader = true;
+				continue;
+			}
+			if (inshader)
+			{
+				if (stringToStore.find("shader_id") != std::string::npos)break;
+				shader_code += stringToStore;
+				shader_code += "\n";
+			}
+		}
+		return crc32(shader_code.c_str(), shader_code.length());
+	}
+	return 0;
 }
 
 void recompile_shader(char* path)
 {
-    if (strcmp(getFileNameFromPath(path), "raymarch.glsl") == 0)
+    if (strcmp(getFileNameFromPath(path), "shader.glsl") == 0)
     {
-        static unsigned long last_shaderload = 0;
-        unsigned long load = timeGetTime();
-        if (load - last_shaderload > 200) { //take into account actual shader recompile time
-            Sleep(100);
-            compile_raymarchshader(path);
+        static uint32_t last_crcraymarch = 0;
+		static uint32_t last_crcpost = 0;
+
+		uint32_t crc_raymarch = get_shaderblockcrc("shader.glsl", "shader_id RAYMARCH");
+        if (last_crcraymarch != crc_raymarch) { //take into account actual shader recompile time
+			printf("Compiling raymarch shader.....\n");
+			delete_shaderblock(raymarch_shader);
+			raymarch_shader=compile_shaderblock("shader.glsl", "shader_id RAYMARCH");
+			char* label1 = raymarch_shader.compiled ? "Compiled raymarch shader\n" : "Failed to compile raymarch shader\n";
+			printf("%s", label1);
+			last_crcraymarch = crc_raymarch;
         }
-        last_shaderload = timeGetTime();
+
+		uint32_t crc_postshader = get_shaderblockcrc("shader.glsl", "shader_id POST1");
+		if (crc_postshader != last_crcpost) { //take into account actual shader recompile time
+			printf("Compiling post-process shader.....\n");
+			delete_shaderblock(post_shader);
+			post_shader = compile_shaderblock("shader.glsl", "shader_id POST1");
+			char* label2 = post_shader.compiled ? "Compiled post-process shader\n" : "Failed to compile post-process shader\n";
+			printf("%s", label2);
+			last_crcpost = crc_postshader;
+		}
     }
-    if (strcmp(getFileNameFromPath(path), "post.glsl") == 0)
-    {
-        static unsigned long last_shaderload = 0;
-        unsigned long load = timeGetTime();
-        if (load - last_shaderload > 200) { //take into account actual shader recompile time
-            Sleep(100);
-            compile_ppshader(path);
-        }
-        last_shaderload = timeGetTime();
-    }
+
     shaderconfig_map.clear();
-    if (raymarch_shader.compiled)
-        glsl_to_config(raymarch_shader, "raymarch.glsl", false);
-    if (post_shader.compiled)
-        glsl_to_config(post_shader, "post.glsl", true);
+
+	int size = 0;
+	unsigned char* data = readFile("shader.glsl", &size, true);
+	if (raymarch_shader.compiled)
+	{
+		glsl_to_config(raymarch_shader, (char*)data, "shader_id RAYMARCH");
+	}
+
+	if (post_shader.compiled)
+	{
+		glsl_to_config(post_shader, (char*)data, "shader_id POST1");
+	}
+	free(data);
 }
 
 char *get_file(void) {
@@ -793,24 +874,30 @@ const char* PezInitialize(int width, int height)
     TCHAR path[512] = { 0 };
 	GetCurrentDirectoryA(512,path);
     drfsw_add_directory(context, path);
-    compile_raymarchshader("raymarch.glsl");
-    compile_ppshader("post.glsl");
+
+	printf("Compiling raymarch shader.....\n");
+	raymarch_shader=compile_shaderblock("shader.glsl", "shader_id RAYMARCH");
+	char* label1 = raymarch_shader.compiled ? "Compiled raymarch shader\n" : "Failed to compile raymarch shader\n";
+	printf("%s", label1);
+
+	printf("Compiling post-process shader.....\n");
+	post_shader =compile_shaderblock("shader.glsl", "shader_id POST1");
+	char* label2 = post_shader.compiled ? "Compiled post-process shader\n" : "Failed to compile post-process shader\n";
+	printf("%s", label2);
+
     shaderconfig_map.clear();
+	int size = 0;
+	unsigned char* data = readFile("shader.glsl", &size, true);
 	if (raymarch_shader.compiled)
 	{
-		int size = 0;
-		unsigned char* data = readFile("raymarch.glsl", &size,true);
-		glsl_to_config(raymarch_shader, (char*)data, false);
-		free(data);
+		glsl_to_config(raymarch_shader, (char*)data, "shader_id RAYMARCH");
 	}
        
 	if (post_shader.compiled)
 	{
-		int size = 0;
-		unsigned char* data = readFile("post.glsl", &size, true);
-		glsl_to_config(post_shader, (char*)data, true);
-		free(data);
+		glsl_to_config(post_shader, (char*)data, "shader_id POST1");
 	}
+	free(data);
         
     render_fbo = init_fbo(render_width, render_height, false);
     return "Shader Lathe v0.4";
