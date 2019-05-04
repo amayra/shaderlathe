@@ -64,6 +64,19 @@ FBOELEM render_fbo;
 #define render_width 1920
 #define render_height 1080
 
+NK_API int nk_tab(struct nk_context *ctx, const char *title, int active)
+{
+	const struct nk_user_font *f = ctx->style.font;
+	float text_width = f->width(f->userdata, f->height, title, nk_strlen(title));
+	float widget_width = text_width + 3 * ctx->style.button.padding.x;
+	nk_layout_row_push(ctx, widget_width);
+	struct nk_style_item c = ctx->style.button.normal;
+	if (active) { ctx->style.button.normal = ctx->style.button.active; }
+	int r = nk_button_label(ctx, title);
+	ctx->style.button.normal = c;
+	return r;
+}
+
 static struct sync_device *device = NULL;
 #if !defined(SYNC_PLAYER)
 static struct sync_cb cb;
@@ -258,7 +271,7 @@ void glsl_to_config(shader_id prog, char *shader_path, char* shad_token)
 	bool inshader = false;
 	bool ispostproc = false;
 	while (getline(openFile, stringToStore)) {
-			if (stringToStore == shad_token)
+		    if (stringToStore.find(shad_token) != std::string::npos)
 			{
 				if (stringToStore.find("POST") != std::string::npos)ispostproc = true;
 				inshader = true;
@@ -577,7 +590,7 @@ shader_id compile_shaderblock(char *shader_path, const char* shad_token)
 		bool inshader = false;
 		string stringToStore;
 		while (getline(openFile, stringToStore)) {
-			if (stringToStore == shad_token)
+			if (stringToStore.find(shad_token) != std::string::npos)
 			{
 				inshader = true;
 				continue;
@@ -605,7 +618,7 @@ uint32_t get_shaderblockcrc(char *shader_path, const char* shad_token)
 		bool inshader = false;
 		string stringToStore;
 		while (getline(openFile, stringToStore)) {
-			if (stringToStore == shad_token)
+			if (stringToStore.find(shad_token) != std::string::npos)
 			{
 				inshader = true;
 				continue;
@@ -687,6 +700,7 @@ char *get_file(void) {
 
 void gui()
 {
+	static int state = 0;
     static double time = 0;
     if (ctx)
     {
@@ -774,17 +788,49 @@ void gui()
             NK_WINDOW_BORDER | NK_WINDOW_MOVABLE |
             NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
         {
+			enum {
+				TAB1,
+				TAB2
+			};
+
+			nk_layout_row_dynamic(ctx, 20, 2);
+			if (nk_option_label(ctx, "Raymarch", state == TAB1)) { state = TAB1; }
+			if (nk_option_label(ctx, "Post-process", state == TAB2)) { state = TAB2; }
+
             for (int i = 0; i < shaderconfig_map.size(); i++) {
                 if (strstr(shaderconfig_map[i].name, "_rkt") == NULL) {
-                    nk_layout_row_dynamic(ctx, 25, 1);
-                    char label1[100] = { 0 };
-                    char *shader_type = shaderconfig_map[i].ispost ? "%s: %.2f (post-process)" : "%s: %.2f (raymarch)";
-                    sprintf(label1, shader_type, shaderconfig_map[i].name, shaderconfig_map[i].val);
-                    nk_label(ctx, label1, NK_TEXT_LEFT);
-                    nk_layout_row_static(ctx, 30, 250, 2);
-                    nk_slider_float(ctx, shaderconfig_map[i].min, &shaderconfig_map[i].val, shaderconfig_map[i].max, shaderconfig_map[i].inc);
+					if (state == TAB1)
+					{
+						if (!shaderconfig_map[i].ispost)
+						{
+							char label1[100] = { 0 };
+							char *shader_type = "%s: %.2f";
+							sprintf(label1, shader_type, shaderconfig_map[i].name, shaderconfig_map[i].val);
+							nk_label(ctx, label1, NK_TEXT_LEFT);
+							nk_layout_row_static(ctx, 30, 250, 2);
+							nk_slider_float(ctx, shaderconfig_map[i].min, &shaderconfig_map[i].val, shaderconfig_map[i].max, shaderconfig_map[i].inc);
+						}
+					}
+					
                 }
             }
+
+			for (int i = 0; i < shaderconfig_map.size(); i++) {
+				if (strstr(shaderconfig_map[i].name, "_rkt") == NULL) {
+					if (state == TAB2)
+					{
+						if (shaderconfig_map[i].ispost)
+						{
+							char label1[100] = { 0 };
+							sprintf(label1, "%s: %.2f", shaderconfig_map[i].name, shaderconfig_map[i].val);
+							nk_label(ctx, label1, NK_TEXT_LEFT);
+							nk_layout_row_static(ctx, 30, 250, 2);
+							nk_slider_float(ctx, shaderconfig_map[i].min, &shaderconfig_map[i].val, shaderconfig_map[i].max, shaderconfig_map[i].inc);
+						}
+					}
+				}
+			}
+
             struct nk_command_buffer* canvas = nk_window_get_canvas(ctx);
             struct nk_vec2 cvbounds = nk_window_get_position(ctx);
             const struct nk_color gridColor = nk_rgba(255, 255, 255, 255);
