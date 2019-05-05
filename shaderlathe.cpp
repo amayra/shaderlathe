@@ -769,9 +769,7 @@ void gui()
         }
         nk_end(ctx);
         //uniform widget
-        int sz1 = shaderconfig_map.size() * 30 * 3;
-        int sz = sz1 + 96;
-		if (nk_begin(ctx, "Uniforms", nk_rect(900, 30, 300, sz),
+		if (nk_begin(ctx, "Uniforms", nk_rect(900, 30, 300, 250),
 			NK_WINDOW_BORDER | NK_WINDOW_MOVABLE |
 			NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
 		{
@@ -821,14 +819,7 @@ void gui()
 				}
 			}
 
-            struct nk_command_buffer* canvas = nk_window_get_canvas(ctx);
-            struct nk_vec2 cvbounds = nk_window_get_position(ctx);
-            const struct nk_color gridColor = nk_rgba(255, 255, 255, 255);
-            for (int i = 0; i < 4; i++)
-            {
-                struct nk_image myImage = nk_image_id((int)lookup_tex[i]);
-                nk_draw_image(canvas, nk_rect(cvbounds.x + (75 * i), sz1 + cvbounds.y, 64, 64), &myImage, gridColor);
-            }
+           
         }
         nk_end(ctx);
     }
